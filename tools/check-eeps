@@ -442,11 +442,18 @@ def check_markdown(path):
         # of an 80-character line limit", excepting links, tables,
         # headings and code blocks.
         if len(line) > MAX_LINE:
+            # An inline code span is a literal string: rewrapping it
+            # would change it, which is the same reason Google exempts
+            # links. The exemption applies only when the literal is what
+            # pushes the line over, not to any line that contains one.
+            literal = max((len(s) for s in re.findall(r"`[^`]*`", line)),
+                          default=0)
             exempt = (
                 stripped.startswith("#")
                 or stripped.startswith("|")
                 or n <= body_start
                 or any(len(tok) > 40 for tok in line.split())
+                or (literal > 40 and len(line) - literal <= MAX_LINE)
             )
             if not exempt:
                 add("M005", n, "line is %d characters, the limit is %d"
