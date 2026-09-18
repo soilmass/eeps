@@ -526,6 +526,61 @@ def check_codeowners(eep_paths):
     return findings
 
 
+def check_repo_files(eep_paths):
+    """The repository must surface what the series has settled.
+
+    An EEP's own Copyright section covers that EEP.  It does not cover
+    the checker, the fixtures or the prose around them, and a reader
+    looking for either the licence or the code of conduct looks in the
+    root before they look in a numbered document.
+    """
+    findings = []
+
+    # R002  The licence the series settled, where it can be found.
+    path = os.path.join(REPO, "LICENSE")
+    if not os.path.exists(path):
+        findings.append(Finding("R002", path, 0, "LICENSE is missing"))
+    else:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        if "CC0 1.0 Universal" not in text:
+            findings.append(Finding(
+                "R002", path, 0,
+                "LICENSE does not carry the CC0 1.0 Universal text"))
+
+    # R003  The code of conduct, and it may not outrun the EEP that
+    # adopts it: an unfilled placeholder is tolerable only while that
+    # EEP is still Draft.
+    path = os.path.join(REPO, "CODE_OF_CONDUCT.md")
+    if not os.path.exists(path):
+        findings.append(
+            Finding("R003", path, 0, "CODE_OF_CONDUCT.md is missing"))
+        return findings
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    m = re.search(r"eeps/(eep-\d{4})\.md", text)
+    if not m:
+        findings.append(Finding(
+            "R003", path, 0,
+            "CODE_OF_CONDUCT.md names no EEP as the code it adopts"))
+        return findings
+    target = os.path.join(REPO, "eeps", m.group(1) + ".md")
+    if not os.path.exists(target):
+        findings.append(Finding(
+            "R003", path, 0,
+            "CODE_OF_CONDUCT.md names %s, which does not exist" % m.group(1)))
+        return findings
+    if re.search(r"\[[A-Z][A-Z0-9 _/()-]{2,}\](?!\()", blank_code(text)):
+        with open(target, encoding="utf-8") as fh:
+            headers, _, _, _ = split_front_matter(fh.read())
+        if (headers or {}).get("Status") not in (None, "Draft"):
+            findings.append(Finding(
+                "R003", path, 0,
+                "CODE_OF_CONDUCT.md has an unfilled placeholder but %s is "
+                "no longer Draft" % m.group(1)))
+    return findings
+
+
 def main(argv):
     targets = argv[1:]
     eeps_dir = os.path.join(REPO, "eeps")
@@ -560,6 +615,7 @@ def main(argv):
         findings += check_markdown(p)
     if not targets:
         findings += check_codeowners(eep_paths)
+        findings += check_repo_files(eep_paths)
 
     for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
         print(f)

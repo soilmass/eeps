@@ -37,6 +37,15 @@ them.
 
 EEP 1 says how. Most changes do not need a proposal.
 
+## Code of conduct
+
+[EEP 5](eeps/eep-0005.md) adopts one, by pin.
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) says where to find it and where a
+report goes.
+
 ## License
 
-See the Copyright section of each EEP.
+Public domain, or CC0-1.0-Universal, whichever is more permissive. That covers
+the whole repository, the tools and this file included, and not only the EEPs.
+[LICENSE](LICENSE) carries the text; each EEP repeats the notice in its own
+Copyright section, as the adopted process requires.
