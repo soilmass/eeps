@@ -10,8 +10,21 @@ or changes how Edison works, gets proposed, decided and recorded.
 2. Read [EEP 2](eeps/eep-0002.md). It says what Edison is and the rule everything built on it
    follows.
 
-If you are an agent, each of those two documents has a section called "How to Teach This".
+If you are an agent, each of those two documents has a section called "How to teach this".
 Follow both.
+
+## Writing one
+
+[EEP 3](eeps/eep-0003.md) holds the template. Copy the skeleton at the end of it, fill it in,
+and check your work:
+
+```sh
+tools/check-eeps
+```
+
+The checker enforces what PEP 1 requires of a proposal and what the reference publisher
+requires of the prose. Every rule in it names the source it comes from. `tests/run-fixtures`
+proves each rule can fail.
 
 ## The series
 

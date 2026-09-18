@@ -218,6 +218,19 @@ def parses_as_yaml(text):
         return False
 
 
+def blank_code(text):
+    """Replace code spans and fenced blocks with spaces of the same size.
+
+    Line structure is preserved so that offsets into the result still map
+    to the same lines of the original.
+    """
+    def blank(m):
+        return "".join(" " if c != "\n" else "\n" for c in m.group(0))
+
+    text = re.sub(r"^```.*?^```", blank, text, flags=re.S | re.M)
+    return re.sub(r"`[^`\n]*`", blank, text)
+
+
 def headings(text, body_start):
     """Yield (level, title, line_number) for every ATX heading."""
     out = []
@@ -462,7 +475,10 @@ def check_markdown(path):
             add("M008", n, "heading %r is not sentence case" % title)
 
     # M009  A relative link must resolve.  EEP 2: a source anyone can open.
-    for m in re.finditer(r"\[[^\]]*\]\(([^)]+)\)", text):
+    # A link written inside inline code or a fenced block is an example,
+    # not a link, so those spans are blanked first.  Blanking preserves
+    # length and newlines so that reported line numbers stay true.
+    for m in re.finditer(r"\[[^\]]*\]\(([^)]+)\)", blank_code(text)):
         target = m.group(1).split("#")[0].strip()
         if not target or "://" in target or target.startswith("mailto:"):
             continue
