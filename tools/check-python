@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RCFILE = os.path.join(REPO, ".pylintrc")
+RCFILE = os.path.join(REPO, "tools", "pylintrc")
 
 # The revision of google/styleguide that EEP 6 pins. tools/check-eeps
 # checks that this matches what EEP 6 says, so the tool and the document

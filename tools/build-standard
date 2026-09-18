@@ -37,8 +37,8 @@ import textwrap
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EEPS = os.path.join(REPO, "eeps")
-DOC = os.path.join(REPO, "STANDARD.md")
-INDEX = os.path.join(REPO, "standard.json")
+DOC = os.path.join(REPO, "standard", "STANDARD.md")
+INDEX = os.path.join(REPO, "standard", "standard.json")
 
 HEADER = """# The standard
 
@@ -147,7 +147,7 @@ def build():
             "so nothing in them binds and nothing from them appears below.",
             width=79) + "\n")
         for name, headers, _ in held:
-            parts.append("- [EEP %s - %s](eeps/%s), %s"
+            parts.append("- [EEP %s - %s](../eeps/%s), %s"
                          % (headers.get("EEP"), headers.get("Title"),
                             name, headers.get("Status", "?")))
         parts.append("")
@@ -158,7 +158,7 @@ def build():
         title = headers.get("Title")
         parts.append("## EEP %s - %s\n" % (number, title))
         accepted = headers.get("Resolution", "").split()[:1]
-        parts.append("From [EEP %s](eeps/%s)%s.\n"
+        parts.append("From [EEP %s](../eeps/%s)%s.\n"
                      % (number, name,
                         ", accepted " + accepted[0] if accepted else ""))
         body = specification(text)
@@ -204,6 +204,7 @@ def main(argv):
         return 0
 
     for path, content in ((DOC, doc), (INDEX, index)):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(content)
         print("wrote %s" % os.path.relpath(path, REPO))
