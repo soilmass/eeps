@@ -1,0 +1,5 @@
+# PEP 1, as adopted by EEP 1, asks that authors and sponsors with write access
+# be listed for their files, so that changes to a file are routed to them.
+# Replace YOUR-USERNAME with the owner's account name on the host.
+/eeps/eep-0001.md @YOUR-USERNAME
+/eeps/eep-0002.md @YOUR-USERNAME
