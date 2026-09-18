@@ -67,6 +67,21 @@
     {
       "cited_revisions": [
         {
+          "path": "docs/code-of-conduct.md",
+          "repository": "google/new-project",
+          "revision": "a4219cca1f010106e7d2734340ed6f64472f2811"
+        }
+      ],
+      "eep": 5,
+      "path": "eeps/eep-0005.md",
+      "resolution": "18-Sep-2026 https://github.com/soilmass/eeps/pull/16",
+      "status": "Active",
+      "title": "Edison's Code of Conduct",
+      "type": "Process"
+    },
+    {
+      "cited_revisions": [
+        {
           "path": "pyguide.md",
           "repository": "google/styleguide",
           "revision": "3b8822983dc779c498961cc86332a28c07590f64"

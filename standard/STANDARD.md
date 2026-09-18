@@ -16,7 +16,6 @@ any section to read the argument behind it.
 These EEPs are written but the council has not accepted them, so nothing in
 them binds and nothing from them appears below.
 
-- [EEP 5 - Edison's Code of Conduct](../eeps/eep-0005.md), Draft
 - [EEP 7 - What every Edison project gets](../eeps/eep-0007.md), Draft
 
 ## EEP 1 - EEP Purpose and Guidelines
@@ -640,6 +639,95 @@ answers the question and this document is updated.
 
 A change to this document is proposed as a Process EEP or as an update to this
 one, and the council decides it. This is the clause EEP 1 uses on itself.
+
+## EEP 5 - Edison's Code of Conduct
+
+From [EEP 5](../eeps/eep-0005.md), accepted 18-Sep-2026.
+
+### The pin
+
+Edison adopts the Code of Conduct at revision
+`a4219cca1f010106e7d2734340ed6f64472f2811` of `docs/code-of-conduct.md` in
+`github.com/google/new-project`, committed 04-Nov-2024. Later changes to that
+file do not change Edison's code until the pin is moved.
+
+### Why this one
+
+EEP 2 ranks what may confirm a thing. The reference publisher, Google, is third.
+Established practice in the wider community is fourth. The code above is
+published by Google and is the one it directs its own projects to use, so it
+outranks a code that is only widely used.
+
+Google's own attribution says the document is "adapted from the Contributor
+Covenant, version 1.4". Adopting Google's therefore adopts a Contributor
+Covenant, by the higher-ranked route. That attribution is part of the pinned
+text and is carried here, not stripped.
+
+### The rule of adoption
+
+The pinned code is read with the substitutions below. Nothing in it is added to
+and nothing removed. Where a substitute does not exist, the clause is
+**vacant**: it stays in the code, it is skipped for now, and it is filled as
+soon as it can be. This is EEP 1's rule, applied to a different document.
+
+### Substitutions
+
+| The code says | Read as |
+|---|---|
+| the project, `[PROJECT NAME]` | the EEP series, and Edison where the scope below reaches wider |
+| project maintainers | the council, as EEP 4 defines it |
+| `[PROJECT STEWARD NAME(s) AND EMAIL(s)]`, the Project Steward | the council, reached at `soilmassive@gmail.com` |
+| a committee of representatives from the Open Source Programs Office and the Google Open Source Strategy team | vacant. There is no committee. The council acts alone |
+| `opensource@google.com`, the address for someone uncomfortable reaching the Steward | vacant. See the section on what this code does not provide |
+| project-sponsored spaces | the repository, and anywhere a person represents Edison |
+| an official project e-mail address, an official social media account, an appointed representative at an event | the same, once any of them exists. None does today |
+| banning a contributor | available to the council, once there is a contributor to ban |
+
+### Who receives a report
+
+The council. Today that is the owner, alone, as EEP 4 says.
+
+The reporting address is `soilmassive@gmail.com`. The owner gave it on
+18-Sep-2026. It had to be filled before the repository is made public, because a
+code of conduct with no working channel is worse than none: it invites a report
+it cannot receive. `tools/check-eeps` refuses any EEP that still carries an
+unfilled placeholder once its status is no longer `Draft`, which is what would
+have stopped this being forgotten on the way to acceptance.
+
+### What an agent may do
+
+An agent may receive a report. An agent may not decide what is done about one.
+
+This is narrower than the roles EEP 4 opens to agents, and deliberately so. A
+conduct report usually contains a third person's account of being harmed,
+including who they are. Passing that to an agent sends another person's
+information to a model provider, and the person who made the report is not the
+person who agreed to that. The narrowing limits how far that reaches: an agent
+may route and acknowledge, and the judgment stays with the council.
+
+The pinned code already says "The identity of the reporter will be omitted from
+the details of the report supplied to the accused". The rule above is the same
+concern applied to who else sees it.
+
+### Scope
+
+The code applies in the repository, and in public where a person represents
+Edison. This is the pinned code's own scope and it is adopted as written.
+
+The pinned code also reaches outside those spaces where the steward "has a
+reasonable belief that an individual's behavior may have a negative impact on
+the project or its community". That clause is adopted too. It is the widest
+power in this document and the council should be slow with it.
+
+### What this code does not provide
+
+The pinned code gives a reporter a second address to use if they are
+uncomfortable reaching the Project Steward. Edison cannot provide one. A council
+of one person is also the only place a report can go, and if the complaint is
+about that person there is nowhere else to take it.
+
+This is stated rather than quietly dropped. It is a real gap, it is listed as an
+open issue below, and it is the strongest reason to want a second person.
 
 ## EEP 6 - The standard Edison's code is held to
 
