@@ -669,6 +669,31 @@ def check_python_standard():
     return findings
 
 
+def check_no_artifacts():
+    """Nothing a tool produced by running should be in the repository.
+
+    A .pyc was committed once, swept in by `git add -A` after a tool was
+    imported to test it.  .gitignore stops it happening again by
+    accident; this stops it happening on purpose, and catches anything
+    already tracked.
+    """
+    findings = []
+    proc = subprocess.run(
+        ["git", "-C", REPO, "ls-files"],
+        capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        return []
+    for name in proc.stdout.split("\n"):
+        if not name.strip():
+            continue
+        if name.endswith((".pyc", ".pyo")) or "__pycache__/" in name \
+                or name.startswith((".ruff_cache/", ".mypy_cache/")):
+            findings.append(Finding(
+                "R007", os.path.join(REPO, name), 0,
+                "%s is a build artefact and is tracked" % name))
+    return findings
+
+
 def check_standard():
     """The generated standard must match the EEPs it came from.
 
@@ -727,6 +752,7 @@ def main(argv):
         findings += check_repo_files()
         findings += check_python_standard()
         findings += check_standard()
+        findings += check_no_artifacts()
 
     for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
         print(f)
