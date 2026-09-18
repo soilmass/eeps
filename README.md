@@ -50,7 +50,8 @@ way to it. Read the standard when you want to know what to do.
 - `tools/` holds the checks, and `tools/pylintrc` the configuration EEP 6
   adopts. `pylint` run on its own will not find that file, so run
   `tools/check-python`, or pass `--rcfile=tools/pylintrc` yourself.
-- `tests/` holds one fixture per rule and the runner that proves each can fail.
+- `tests/` holds one fixture per file-level rule and the runner that proves
+  each of those can fail.
 
 ## The series
 

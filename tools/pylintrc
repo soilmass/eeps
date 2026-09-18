@@ -36,8 +36,13 @@
 # invalid-name still governs every variable, constant, class, argument
 # and function in the repository.
 #
-# EEP 6 records both divergences. tools/check-eeps refuses a
-# tools/pylintrc whose divergences are not the ones EEP 6 lists.
+# EEP 6 records both divergences. tools/check-eeps rule R004 refuses a
+# line here that declares a divergence with an inline "# Edison:" marker
+# and names a setting no EEP records. It reads only those markers, so it
+# does not see the module-rgx divergence below, whose marker sits on its
+# own line, and it cannot see a divergence that declares nothing at all.
+# Only a diff against the pinned upstream file would catch that, and
+# nothing does it.
 
 # This Pylint rcfile contains a best-effort configuration to uphold the
 # best-practices and style described in the Google Python style guide:
