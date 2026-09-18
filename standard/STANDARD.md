@@ -17,6 +17,7 @@ These EEPs are written but the council has not accepted them, so nothing in
 them binds and nothing from them appears below.
 
 - [EEP 5 - Edison's Code of Conduct](../eeps/eep-0005.md), Draft
+- [EEP 7 - What every Edison project gets](../eeps/eep-0007.md), Draft
 
 ## EEP 1 - EEP Purpose and Guidelines
 
