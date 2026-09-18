@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Prove every rule in tools/check-eeps can fail.
+
+Each directory under tests/fixtures/ is named for the rule it breaks and
+holds one EEP that breaks it and nothing else. tests/fixtures/valid holds
+the file they are all derived from, which must pass cleanly.
+
+A rule that has never been seen failing has never been tested, so a rule
+with no fixture is itself reported as a failure.
+
+Usage:
+    tests/run-fixtures
+"""
+
+import os
+import re
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(ROOT)
+FIXTURES = os.path.join(ROOT, "fixtures")
+CHECKER = os.path.join(REPO, "tools", "check-eeps")
+
+
+def run(path):
+    p = subprocess.run(
+        [sys.executable, CHECKER, path],
+        capture_output=True, text=True)
+    return p.returncode, p.stdout
+
+
+def rules_in(checker_source):
+    """Every rule id the checker can emit, read from the checker itself."""
+    text = open(checker_source, encoding="utf-8").read()
+    return set(re.findall(r'add\("([EMR]\d{3})"', text)) | \
+        set(re.findall(r'Finding\("([EMR]\d{3})"', text))
+
+
+def main():
+    try:
+        import yaml                      # noqa: F401
+        have_yaml = True
+    except ImportError:
+        have_yaml = False
+
+    failures = []
+    covered = set()
+
+    # The baseline must pass, or every other result is meaningless.
+    valid = os.path.join(FIXTURES, "valid", "eep-9999.md")
+    code, out = run(valid)
+    if code != 0:
+        failures.append("valid fixture does not pass:\n%s" % out)
+
+    for name in sorted(os.listdir(FIXTURES)):
+        d = os.path.join(FIXTURES, name)
+        if not os.path.isdir(d) or name == "valid":
+            continue
+        rule = name.split("-", 1)[0]
+        if rule == "E003" and not have_yaml:
+            print("skip %-40s PyYAML not installed" % name)
+            continue
+        target = os.path.join(d, os.listdir(d)[0])
+        code, out = run(target)
+        emitted = set(re.findall(r"^([EMR]\d{3})\b", out, re.M))
+        if code == 0:
+            failures.append("%s: checker passed a file that breaks %s"
+                            % (name, rule))
+        elif rule not in emitted:
+            failures.append("%s: expected %s, got %s"
+                            % (name, rule, ", ".join(sorted(emitted)) or "-"))
+        else:
+            covered.add(rule)
+            print("ok   %-40s %s" % (name, rule))
+
+    # R001 is a repository-level rule with no single-file fixture.
+    for rule in sorted(rules_in(CHECKER) - covered - {"R001"}):
+        failures.append("rule %s has no fixture; it has never been seen "
+                        "failing" % rule)
+
+    if failures:
+        print("\n" + "\n".join(failures))
+        print("\n%d failure(s)." % len(failures))
+        return 1
+    print("\n%d rule(s) seen failing." % len(covered))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
