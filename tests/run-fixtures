@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Prove every rule in tools/check-eeps can fail.
+"""Prove every file-level rule in tools/check-eeps can fail.
 
 Each directory under tests/fixtures/ is named for the rule it breaks and
 holds one EEP that breaks it and nothing else. tests/fixtures/valid holds
 the file they are all derived from, which must pass cleanly.
 
 A rule that has never been seen failing has never been tested, so a rule
-with no fixture is itself reported as a failure.
+with no fixture is itself reported as a failure.  The repository-level R
+rules are exempt: no single EEP file can provoke them, and each was
+provoked by hand in the commit that introduced it.
 
 Usage:
     tests/run-fixtures
