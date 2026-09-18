@@ -22,13 +22,15 @@ it, fill it in, and check your work:
 ```sh
 tools/check-eeps
 tools/check-python
+tools/check-adoption
 ```
 
 The first enforces what PEP 1 requires of a proposal and what the reference
 publisher requires of the prose. The second holds this repository's own Python
 to the standard [EEP 6](eeps/eep-0006.md) adopts, and skips if `pylint` is not
-installed. Every rule in it names the source it comes from. `tests/run-fixtures`
-proves each rule can fail.
+installed. The third checks that EEP 1's substitution table still covers the PEP
+1 revision it pins, and skips without a network. Every rule in it names the
+source it comes from. `tests/run-fixtures` proves each rule can fail.
 
 ## The series
 
