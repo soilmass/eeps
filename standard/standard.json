@@ -74,7 +74,7 @@
       ],
       "eep": 5,
       "path": "eeps/eep-0005.md",
-      "resolution": "18-Sep-2026 PRURL",
+      "resolution": "18-Sep-2026 https://github.com/soilmass/eeps/pull/16",
       "status": "Active",
       "title": "Edison's Code of Conduct",
       "type": "Process"
