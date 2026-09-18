@@ -1,0 +1,576 @@
+#!/usr/bin/env python3
+"""Check the EEP series against the process it adopts.
+
+Every rule here traces to one of three sources, named in the rule's own
+``source`` field:
+
+``PEP 1``
+    Python's PEP 1 at the revision EEP 1 pins,
+    ``74fc18d540c2ea9d2a6f1ba852d0a56e10e1057d``.  Line numbers refer to
+    ``peps/pep-0001.rst`` at that revision.
+``Google``
+    The reference publisher EEP 2 names.  ``docguide/style.md`` in
+    ``github.com/google/styleguide`` for Markdown, and
+    ``developers.google.com/style`` for prose.
+``EEP``
+    A decision recorded in the series itself.
+
+A rule with no source does not belong in this file.
+
+Usage:
+    tools/check-eeps [PATH ...]
+
+Exits 0 when every check passes, 1 when any fails, 2 when it could not run.
+"""
+
+import os
+import re
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# --- what the pinned process allows ------------------------------------
+
+# PEP 1:622-639.  The order is mandatory: "The headers must appear in the
+# following order" (PEP 1:617).  Optional headers are marked in PEP 1 with
+# "*"; here they are the ones absent from REQUIRED_HEADERS below.
+#
+# Two headers PEP 1 lists are vacant under EEP 1 and so are absent here:
+# "Topic" (EEP 1's vacant-steps list) and "Python-Version" (EEP 1's
+# substitution table).  A vacant step "stays in the process, it is skipped
+# for now" (EEP 1), which is why they keep their slots in the comment but
+# are not accepted in a file.
+HEADER_ORDER = [
+    "EEP",
+    "Title",
+    "Author",
+    "Sponsor",
+    "EEP-Delegate",
+    "Discussions-To",
+    "Status",
+    "Type",
+    # "Topic" -- vacant
+    "Requires",
+    "Created",
+    # "Python-Version" -- vacant
+    "Post-History",
+    "Replaces",
+    "Superseded-By",
+    "Resolution",
+]
+
+# PEP 1:617-618: "Headers marked with '*' are optional ... All other
+# headers are required."
+REQUIRED_HEADERS = [
+    "EEP",
+    "Title",
+    "Author",
+    "Discussions-To",
+    "Status",
+    "Type",
+    "Created",
+    "Post-History",
+]
+
+# PEP 1:627-628.
+STATUSES = [
+    "Draft",
+    "Active",
+    "Accepted",
+    "Provisional",
+    "Deferred",
+    "Rejected",
+    "Withdrawn",
+    "Final",
+    "Superseded",
+]
+
+# PEP 1:630.
+TYPES = ["Standards Track", "Informational", "Process"]
+
+# PEP 1:494-596, in that order, recased per the owner's decision to follow
+# Google's "sentence case for headings".  That recasing is a departure from
+# PEP 1's literal spellings and is recorded as such in EEP 3.
+SECTION_ORDER = [
+    "Abstract",
+    "Motivation",
+    "Specification",
+    "Rationale",
+    "Backwards compatibility",
+    "Security implications",
+    "How to teach this",
+    "Reference implementation",
+    "Rejected ideas",
+    "Open issues",
+    "Acknowledgements",
+    "Footnotes",
+    "Change history",
+    "Copyright",
+]
+
+# PEP 1 states these three conditionally, so their absence is not a defect:
+#   "All PEPs *that introduce backwards incompatibilities* must include a
+#   section ..."           (PEP 1:527)
+#   "*If there are security concerns* ..."   (PEP 1:534)
+#   "Footnotes -- A collection of footnotes *cited in the PEP* ..."
+#                                            (PEP 1:581)
+CONDITIONAL_SECTIONS = {
+    "Backwards compatibility",
+    "Security implications",
+    "Footnotes",
+}
+REQUIRED_SECTIONS = [s for s in SECTION_ORDER if s not in CONDITIONAL_SECTIONS]
+
+# PEP 1:898-902, the notice PEP 1:595-596 makes mandatory.
+COPYRIGHT_NOTICE = (
+    "This document is placed in the public domain or under the "
+    "CC0-1.0-Universal license, whichever is more permissive."
+)
+
+# PEP 1:694: "in ``dd-mmm-yyyy`` format, e.g. ``14-Aug-2001``".
+MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+DATE_RE = re.compile(r"^\d{2}-(?:%s)-\d{4}$" % MONTHS)
+
+# Words that may carry a capital inside a sentence-case heading because
+# they are proper nouns or initialisms.  Google's rule is sentence case;
+# it does not require lowercasing a name.
+PROPER = {
+    "Edison", "EEP", "EEPs", "PEP", "PEPs", "Python", "Google", "Jekyll",
+    "Markdown", "YAML", "RFC", "CC0", "CI", "GitHub", "Claude", "I",
+    "Contributor", "Covenant", "Steele", "Edison's",
+    # "Edison Enhancement Proposal" is the name of the series, so its
+    # words keep their capitals wherever the name is written out.
+    "Enhancement", "Proposals", "Proposal",
+}
+
+MAX_LINE = 80              # Google, Markdown style guide.
+MAX_TITLE = 44             # PEP 1:497-498.
+EN_DASH = "–"         # Google: "Don't use."
+
+
+class Finding:
+    def __init__(self, rule, path, line, message):
+        self.rule = rule
+        self.path = path
+        self.line = line
+        self.message = message
+
+    def __str__(self):
+        where = os.path.relpath(self.path, REPO)
+        if self.line:
+            where = "%s:%d" % (where, self.line)
+        return "%s  %s  %s" % (self.rule, where, self.message)
+
+
+def split_front_matter(text):
+    """Return (headers, header_line_numbers, body_start_line, error).
+
+    The ``---`` fence is YAML front matter as defined by Jekyll's
+    documentation, pinned in EEP 3.  The block's contents are an RFC 2822
+    style preamble, which PEP 1:616 requires.
+    """
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return None, None, 0, "no opening --- fence on line 1"
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
+    else:
+        return None, None, 0, "front matter is never closed by a --- fence"
+
+    headers = {}
+    where = {}
+    key = None
+    for n in range(1, end):
+        raw = lines[n]
+        if not raw.strip():
+            continue
+        if raw[0].isspace():          # RFC 2822 continuation line.
+            if key is None:
+                return None, None, 0, "continuation line before any header"
+            headers[key] = (headers[key] + " " + raw.strip()).strip()
+            continue
+        if ":" not in raw:
+            return None, None, 0, "line %d is not 'Name: value'" % (n + 1)
+        key, _, value = raw.partition(":")
+        key = key.strip()
+        headers[key] = value.strip()
+        where[key] = n + 1
+    return headers, where, end + 1, None
+
+
+def parses_as_yaml(text):
+    """True if the front matter is valid YAML, None if PyYAML is absent.
+
+    EEP 3 pins Jekyll's front-matter format, which requires "valid YAML".
+    PyYAML is not in the standard library, so this is an extra check when
+    it happens to be installed rather than a dependency of the series.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return None
+    try:
+        yaml.safe_load(text.split("---", 2)[1])
+        return True
+    except Exception:
+        return False
+
+
+def blank_code(text):
+    """Replace code spans and fenced blocks with spaces of the same size.
+
+    Line structure is preserved so that offsets into the result still map
+    to the same lines of the original.
+    """
+    def blank(m):
+        return "".join(" " if c != "\n" else "\n" for c in m.group(0))
+
+    text = re.sub(r"^```.*?^```", blank, text, flags=re.S | re.M)
+    return re.sub(r"`[^`\n]*`", blank, text)
+
+
+def headings(text, body_start):
+    """Yield (level, title, line_number) for every ATX heading."""
+    out = []
+    fenced = False
+    for n, line in enumerate(text.split("\n")):
+        if n < body_start:
+            continue
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        m = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if m:
+            out.append((len(m.group(1)), m.group(2).strip(), n + 1))
+    return out
+
+
+def is_sentence_case(title):
+    words = re.findall(r"[A-Za-z][A-Za-z0-9'\-]*", title)
+    if not words:
+        return True
+    for w in words[1:]:
+        if w[0].isupper() and w not in PROPER:
+            return False
+    return True
+
+
+# --- the checks --------------------------------------------------------
+
+def check_eep(path, known_numbers):
+    """Check one eeps/eep-NNNN.md against PEP 1."""
+    findings = []
+    name = os.path.basename(path)
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+
+    def add(rule, line, msg):
+        findings.append(Finding(rule, path, line, msg))
+
+    # E001  PEP 1:187-189, under EEP 1's "eep-NNNN.md" substitution.
+    m = re.match(r"^eep-(\d{4})\.md$", name)
+    if not m:
+        add("E001", 0, "filename is not eep-NNNN.md")
+        return findings
+    file_number = int(m.group(1))
+
+    # E002  PEP 1:616 requires a header preamble; EEP 3 pins the fence.
+    headers, where, body_start, err = split_front_matter(text)
+    if err:
+        add("E002", 1, err)
+        return findings
+
+    # E003  Jekyll's front-matter format requires valid YAML.
+    if parses_as_yaml(text) is False:
+        add("E003", 1, "front matter is not valid YAML")
+
+    # E004  PEP 1:617-618, required headers.
+    for h in REQUIRED_HEADERS:
+        if h not in headers:
+            add("E004", 1, "required header %r is missing" % h)
+
+    # E005  PEP 1:617, "The headers must appear in the following order."
+    seen = [h for h in headers if h in HEADER_ORDER]
+    ranked = sorted(seen, key=HEADER_ORDER.index)
+    if seen != ranked:
+        add("E005", 1, "headers are out of order: %s, expected %s"
+            % (", ".join(seen), ", ".join(ranked)))
+
+    # E006  PEP 1 lists the headers exhaustively; anything else is unknown.
+    for h in headers:
+        if h not in HEADER_ORDER:
+            add("E006", where.get(h, 1), "unknown header %r" % h)
+
+    # E007  PEP 1:187-192, the number in the file must match the filename.
+    if "EEP" in headers:
+        try:
+            if int(headers["EEP"]) != file_number:
+                add("E007", where["EEP"],
+                    "EEP header is %s but the filename says %d"
+                    % (headers["EEP"], file_number))
+        except ValueError:
+            add("E007", where["EEP"], "EEP header is not a number")
+
+    # E008  PEP 1:497-498, "limited to a maximum of 44 characters".
+    title = headers.get("Title", "")
+    if len(title) > MAX_TITLE:
+        add("E008", where.get("Title", 1),
+            "title is %d characters, the maximum is %d"
+            % (len(title), MAX_TITLE))
+
+    # E009  PEP 1:627-628.
+    if headers.get("Status") not in STATUSES:
+        add("E009", where.get("Status", 1),
+            "Status %r is not one of: %s"
+            % (headers.get("Status"), ", ".join(STATUSES)))
+
+    # E010  PEP 1:630.
+    if headers.get("Type") not in TYPES:
+        add("E010", where.get("Type", 1),
+            "Type %r is not one of: %s"
+            % (headers.get("Type"), ", ".join(TYPES)))
+
+    # E011  PEP 1:694, dd-mmm-yyyy.  Note that PEP 1's own Change History
+    # is dated 2026-02-02, which breaks the rule PEP 1 states; the rule is
+    # what binds, not the example.
+    if "Created" in headers and not DATE_RE.match(headers["Created"]):
+        add("E011", where["Created"],
+            "Created %r is not DD-MMM-YYYY" % headers["Created"])
+    for part in [p.strip() for p in headers.get("Post-History", "").split(",")]:
+        if part and not DATE_RE.match(re.sub(r"\s*<.*", "", part)):
+            add("E011", where.get("Post-History", 1),
+                "Post-History entry %r is not DD-MMM-YYYY" % part)
+
+    # E012  PEP 1:704-711, cross-references must name an EEP that exists.
+    for h in ("Requires", "Replaces", "Superseded-By"):
+        for ref in [r.strip() for r in headers.get(h, "").split(",")]:
+            if not ref:
+                continue
+            if not ref.isdigit():
+                add("E012", where.get(h, 1),
+                    "%s value %r is not an EEP number" % (h, ref))
+            elif int(ref) not in known_numbers:
+                add("E012", where.get(h, 1),
+                    "%s names EEP %s, which does not exist" % (h, ref))
+
+    heads = headings(text, body_start)
+
+    # E013  The H1 restates the Title header, so the two cannot disagree.
+    h1 = [h for h in heads if h[0] == 1]
+    expected = "EEP %d - %s" % (file_number, title)
+    if len(h1) != 1:
+        add("E013", 1, "expected exactly one H1, found %d" % len(h1))
+    elif h1[0][1] != expected:
+        add("E013", h1[0][2],
+            "H1 is %r, expected %r" % (h1[0][1], expected))
+
+    # E014  PEP 1:494-596, the sections and their order.
+    sections = [(t, ln) for lvl, t, ln in heads if lvl == 2]
+    names = [t for t, _ in sections]
+    for s in REQUIRED_SECTIONS:
+        if s not in names:
+            add("E014", 1, "required section %r is missing" % s)
+    known = [n for n in names if n in SECTION_ORDER]
+    if known != sorted(known, key=SECTION_ORDER.index):
+        add("E014", 1, "sections are out of PEP 1's order: %s"
+            % ", ".join(known))
+    for t, ln in sections:
+        if t not in SECTION_ORDER:
+            add("E014", ln, "unknown section %r" % t)
+
+    # E016  A placeholder an author still has to fill must not survive
+    # into an EEP the council has acted on.  A name written in backticks
+    # is a quotation of some other document's template and is left
+    # alone; a bare one is this document's own hole.
+    if headers.get("Status") not in (None, "Draft"):
+        body_only = blank_code("\n".join(text.split("\n")[body_start:]))
+        for m in re.finditer(r"\[([A-Z][A-Z0-9 _/()-]{2,})\]", body_only):
+            if body_only[m.end():m.end() + 1] == "(":
+                continue                      # a Markdown link, not a hole
+            line = body_start + body_only[:m.start()].count("\n") + 1
+            add("E016", line,
+                "unfilled placeholder %r in an EEP whose status is %r"
+                % (m.group(0), headers.get("Status")))
+
+    # E015  PEP 1:595-596 makes the notice mandatory; the owner adopted
+    # PEP 1's own wording rather than departing from it.
+    body = "\n".join(text.split("\n")[body_start:])
+    tail = body.split("## Copyright", 1)
+    if len(tail) == 2:
+        flat = " ".join(tail[1].split())
+        if COPYRIGHT_NOTICE not in flat:
+            add("E015", 1, "Copyright section does not carry the adopted "
+                           "public domain / CC0-1.0-Universal notice")
+
+    return findings
+
+
+def check_markdown(path):
+    """Check any Markdown file against Google's guides."""
+    findings = []
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    lines = text.split("\n")
+
+    def add(rule, line, msg):
+        findings.append(Finding(rule, path, line, msg))
+
+    _, _, body_start, err = split_front_matter(text)
+    if err:
+        body_start = 0
+
+    fenced = False
+    for n, line in enumerate(lines, 1):
+        stripped = line.lstrip()
+
+        if stripped.startswith("```"):
+            # M001  Google: "It is best practice to explicitly declare the
+            # language" on a fenced code block.
+            if not fenced and not stripped[3:].strip():
+                add("M001", n, "fenced code block declares no language")
+            fenced = not fenced
+            continue
+
+        # M002  Google: "Don't use trailing whitespace."
+        if line != line.rstrip():
+            add("M002", n, "trailing whitespace")
+
+        if fenced:
+            continue
+
+        # M003  Google, en dashes: "Don't use. Instead, use a hyphen or
+        # the word to."
+        if EN_DASH in line:
+            add("M003", n, "en dash (U+2013); use a hyphen")
+
+        # M004  Google: setext headings are out; ATX only.  The front
+        # matter's own --- fences are not headings and are skipped.
+        if n > body_start and re.match(r"^(=|-){3,}\s*$", line):
+            add("M004", n, "setext heading; use ATX (#)")
+
+        # M005  Google: "Markdown content follows the residual convention
+        # of an 80-character line limit", excepting links, tables,
+        # headings and code blocks.
+        if len(line) > MAX_LINE:
+            # An inline code span is a literal string: rewrapping it
+            # would change it, which is the same reason Google exempts
+            # links. The exemption applies only when the literal is what
+            # pushes the line over, not to any line that contains one.
+            literal = max((len(s) for s in re.findall(r"`[^`]*`", line)),
+                          default=0)
+            exempt = (
+                stripped.startswith("#")
+                or stripped.startswith("|")
+                or n <= body_start
+                or any(len(tok) > 40 for tok in line.split())
+                or (literal > 40 and len(line) - literal <= MAX_LINE)
+            )
+            if not exempt:
+                add("M005", n, "line is %d characters, the limit is %d"
+                    % (len(line), MAX_LINE))
+
+        # M006  Google: "use a 4-space indent for both numbered and
+        # bulleted lists".
+        m = re.match(r"^( +)(?:[-*+]|\d+\.)\s", line)
+        if m and len(m.group(1)) % 4:
+            add("M006", n, "list indented %d spaces; use a multiple of 4"
+                % len(m.group(1)))
+
+    heads = headings(text, body_start)
+
+    # M007  Google: one H1 as the title of the document.
+    if len([h for h in heads if h[0] == 1]) != 1:
+        add("M007", 1, "expected exactly one H1")
+
+    # M008  Google: sentence case for headings and titles.  The H1 is
+    # exempt in an EEP because it restates the Title header, which PEP 1
+    # governs; E013 checks that instead.
+    for level, title, n in heads:
+        if level == 1 and os.path.basename(path).startswith("eep-"):
+            continue
+        if not is_sentence_case(title):
+            add("M008", n, "heading %r is not sentence case" % title)
+
+    # M009  A relative link must resolve.  EEP 2: a source anyone can open.
+    # A link written inside inline code or a fenced block is an example,
+    # not a link, so those spans are blanked first.  Blanking preserves
+    # length and newlines so that reported line numbers stay true.
+    for m in re.finditer(r"\[[^\]]*\]\(([^)]+)\)", blank_code(text)):
+        target = m.group(1).split("#")[0].strip()
+        if not target or "://" in target or target.startswith("mailto:"):
+            continue
+        n = text[:m.start()].count("\n") + 1
+        if not os.path.exists(os.path.join(os.path.dirname(path), target)):
+            add("M009", n, "link target %r does not exist" % target)
+
+    return findings
+
+
+def check_codeowners(eep_paths):
+    """PEP 1:793-794, every EEP is routed to someone."""
+    findings = []
+    path = os.path.join(REPO, ".github", "CODEOWNERS")
+    if not os.path.exists(path):
+        return [Finding("R001", path, 0, ".github/CODEOWNERS is missing")]
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    for eep in eep_paths:
+        rel = "/eeps/" + os.path.basename(eep)
+        if rel not in text:
+            findings.append(
+                Finding("R001", path, 0, "no CODEOWNERS line for %s" % rel))
+    return findings
+
+
+def main(argv):
+    targets = argv[1:]
+    eeps_dir = os.path.join(REPO, "eeps")
+    eep_paths = sorted(
+        os.path.join(eeps_dir, f)
+        for f in os.listdir(eeps_dir)
+        if f.endswith(".md")
+    ) if os.path.isdir(eeps_dir) else []
+
+    if targets:
+        eep_paths = [os.path.abspath(t) for t in targets]
+        md_paths = list(eep_paths)
+    else:
+        md_paths = list(eep_paths)
+        for root, dirs, files in os.walk(REPO):
+            dirs[:] = [d for d in dirs
+                       if d not in (".git", "tests", "eeps")]
+            for f in files:
+                if f.endswith(".md"):
+                    md_paths.append(os.path.join(root, f))
+
+    numbers = set()
+    for p in eep_paths:
+        m = re.match(r"^eep-(\d{4})\.md$", os.path.basename(p))
+        if m:
+            numbers.add(int(m.group(1)))
+
+    findings = []
+    for p in eep_paths:
+        findings += check_eep(p, numbers)
+    for p in sorted(set(md_paths)):
+        findings += check_markdown(p)
+    if not targets:
+        findings += check_codeowners(eep_paths)
+
+    for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
+        print(f)
+
+    checked = len(set(md_paths))
+    if findings:
+        print("\n%d finding(s) across %d file(s)." % (len(findings), checked))
+        return 1
+    print("%d file(s) checked, no findings." % checked)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

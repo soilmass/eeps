@@ -1,0 +1,33 @@
+# PEP 1, as adopted by EEP 1, has an editor "ensure all CI build and lint
+# checks pass without errors" before merging an EEP.
+#
+# This workflow cannot run yet: the repository has no host. EEP 1 records
+# that as a vacant step. The checks themselves run locally today, so the
+# lint half of the substitution is filled and this file is what fills the
+# other half the moment the repository lives somewhere.
+name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-eeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # The checker needs no dependency to run. PyYAML lets it also prove
+      # the front matter is valid YAML, which is what EEP 3's pin of
+      # Jekyll's front-matter format requires, so CI installs it.
+      - run: pip install pyyaml
+
+      # Every rule is seen failing on its own fixture before any rule is
+      # trusted to pass.
+      - run: tests/run-fixtures
+
+      - run: tools/check-eeps
