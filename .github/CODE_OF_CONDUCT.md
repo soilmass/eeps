@@ -20,7 +20,7 @@ adoption forced. Read both.
 ## Reporting
 
 Reports go to the council, which EEP 4 defines and which is today the owner
-alone, at [REPORTING ADDRESS].
+alone, at `soilmassive@gmail.com`.
 
 An agent may receive a report. An agent may never decide what is done about one.
 A report usually carries a third person's account of being harmed and their
