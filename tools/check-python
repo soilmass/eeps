@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Check this repository's Python against the standard EEP 6 adopts.
+
+EEP 6 adopts Google's Python Style Guide at a pinned revision, and
+Google's pylintrc at the same revision is what operationalises it. This
+script runs pylint with that configuration, as the guide instructs:
+
+    Run `pylint` over your code using this pylintrc.
+
+Edison's copy of the configuration carries one divergence, which its own
+header and EEP 6 both record. Where the guide and the tool that checks it
+disagree, the guide is right.
+
+pylint is not a dependency of this repository. When it is absent the
+script says so and exits 0, the way tools/check-eeps treats PyYAML: a
+contributor without it is not blocked, and CI installs it so the check is
+never skipped where it decides anything.
+
+Usage:
+    tools/check-python [PATH ...]
+
+Exits 0 when pylint reports nothing or is not installed, 1 otherwise.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RCFILE = os.path.join(REPO, ".pylintrc")
+
+# The revision of google/styleguide that EEP 6 pins. tools/check-eeps
+# checks that this matches what EEP 6 says, so the tool and the document
+# cannot drift apart.
+PIN = "3b8822983dc779c498961cc86332a28c07590f64"
+
+# Every Python file here, named rather than discovered, because these
+# files carry no .py extension and a search would have to guess.
+TARGETS = [
+    os.path.join(REPO, "tools", "check-eeps"),
+    os.path.join(REPO, "tools", "check-python"),
+    os.path.join(REPO, "tests", "run-fixtures"),
+]
+
+
+def pylint():
+    """Return how to invoke pylint, or None when it is not installed."""
+    found = shutil.which("pylint")
+    if found:
+        return [found]
+    try:
+        subprocess.run([sys.executable, "-m", "pylint", "--version"],
+                       capture_output=True, check=True)
+    except (subprocess.CalledProcessError, OSError):
+        return None
+    return [sys.executable, "-m", "pylint"]
+
+
+def main(argv):
+    targets = [os.path.abspath(p) for p in argv[1:]] or TARGETS
+
+    missing = [p for p in targets if not os.path.exists(p)]
+    if missing:
+        for p in missing:
+            print("missing: %s" % os.path.relpath(p, REPO))
+        return 2
+    if not os.path.exists(RCFILE):
+        print(".pylintrc is missing; EEP 6 says it is what defines the "
+              "standard")
+        return 2
+
+    run = pylint()
+    if run is None:
+        print("pylint is not installed, so the Python was not checked.")
+        print("EEP 6 adopts Google's guide at %s." % PIN)
+        print("Install pylint to check against it: pip install pylint")
+        return 0
+
+    # These files have no .py extension, so pylint is pointed at them
+    # directly and told not to infer a package layout around them.
+    proc = subprocess.run(
+        run + ["--rcfile=" + RCFILE] + targets,
+        capture_output=True, text=True, check=False)
+    out = (proc.stdout or "") + (proc.stderr or "")
+
+    if proc.returncode == 0:
+        print("%d file(s) checked, no findings." % len(targets))
+        return 0
+    print(out.strip())
+    print("\n%d file(s) checked, pylint reported findings."
+          % len(targets))
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

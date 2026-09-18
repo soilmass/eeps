@@ -208,13 +208,16 @@ def parses_as_yaml(text):
     it happens to be installed rather than a dependency of the series.
     """
     try:
+        # pylint: disable=import-outside-toplevel
+        # PyYAML is optional: the checker must run without it, so the
+        # import cannot be hoisted to the top of the file.
         import yaml
     except ImportError:
         return None
     try:
         yaml.safe_load(text.split("---", 2)[1])
         return True
-    except Exception:
+    except yaml.YAMLError:
         return False
 
 
@@ -526,7 +529,7 @@ def check_codeowners(eep_paths):
     return findings
 
 
-def check_repo_files(eep_paths):
+def check_repo_files():
     """The repository must surface what the series has settled.
 
     An EEP's own Copyright section covers that EEP.  It does not cover
@@ -581,6 +584,69 @@ def check_repo_files(eep_paths):
     return findings
 
 
+def check_python_standard():
+    """The configuration and the EEP that adopts it must agree.
+
+    EEP 6 adopts a style guide at a pinned revision and a linter
+    configuration at the same one.  Three files name that revision: the
+    EEP, `.pylintrc` and `tools/check-python`.  Nothing stopped them
+    drifting apart, which is how EEP 1's PEP 12 row came to say the
+    template was vacant for four commits after EEP 3 filled it.
+    """
+    findings = []
+    rc = os.path.join(REPO, ".pylintrc")
+    tool = os.path.join(REPO, "tools", "check-python")
+
+    # R004  The configuration exists and still carries the settings the
+    # guide is checked by, and diverges from Google's only where EEP 6
+    # says it does.
+    if not os.path.exists(rc):
+        return [Finding("R004", rc, 0, ".pylintrc is missing")]
+    with open(rc, encoding="utf-8") as fh:
+        conf = fh.read()
+    if "max-line-length=80" not in conf:
+        findings.append(Finding(
+            "R004", rc, 0, ".pylintrc does not set max-line-length=80"))
+
+    adopting = [p for p in sorted(os.listdir(os.path.join(REPO, "eeps")))
+                if p.endswith(".md")]
+    eep_text = ""
+    for name in adopting:
+        with open(os.path.join(REPO, "eeps", name), encoding="utf-8") as fh:
+            eep_text += fh.read()
+    for n, line in enumerate(conf.split("\n"), 1):
+        if "# Edison:" not in line or line.lstrip().startswith("#"):
+            continue
+        setting = line.split("=")[0].split()[0].strip().rstrip(",")
+        if setting not in eep_text:
+            findings.append(Finding(
+                "R004", rc, n,
+                "%r diverges from Google's configuration and no EEP "
+                "records it" % setting))
+
+    # R005  The revision the tool uses is the revision the series adopted.
+    if not os.path.exists(tool):
+        return findings + [
+            Finding("R005", tool, 0, "tools/check-python is missing")]
+    with open(tool, encoding="utf-8") as fh:
+        pins = re.findall(r"[0-9a-f]{40}", fh.read())
+    if not pins:
+        findings.append(Finding(
+            "R005", tool, 0, "tools/check-python names no pinned revision"))
+        return findings
+    pin = pins[0]
+    if pin not in eep_text:
+        findings.append(Finding(
+            "R005", tool, 0,
+            "tools/check-python pins %s, which no EEP adopts" % pin[:12]))
+    if pin not in conf:
+        findings.append(Finding(
+            "R005", rc, 0,
+            ".pylintrc does not name the revision %s that "
+            "tools/check-python uses" % pin[:12]))
+    return findings
+
+
 def main(argv):
     targets = argv[1:]
     eeps_dir = os.path.join(REPO, "eeps")
@@ -615,7 +681,8 @@ def main(argv):
         findings += check_markdown(p)
     if not targets:
         findings += check_codeowners(eep_paths)
-        findings += check_repo_files(eep_paths)
+        findings += check_repo_files()
+        findings += check_python_standard()
 
     for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
         print(f)

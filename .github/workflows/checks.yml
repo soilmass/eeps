@@ -24,10 +24,14 @@ jobs:
       # The checker needs no dependency to run. PyYAML lets it also prove
       # the front matter is valid YAML, which is what EEP 3's pin of
       # Jekyll's front-matter format requires, so CI installs it.
-      - run: pip install pyyaml
+      - run: pip install pyyaml pylint
 
       # Every rule is seen failing on its own fixture before any rule is
       # trusted to pass.
       - run: tests/run-fixtures
 
       - run: tools/check-eeps
+
+      # EEP 6's standard. The tool skips when pylint is absent,
+      # so CI is the only place conformance is actually proven.
+      - run: tools/check-python
