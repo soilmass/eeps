@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Prove every rule in tools/check-eeps can fail.
+"""Prove every file-level rule in tools/check-eeps can fail.
 
 Each directory under tests/fixtures/ is named for the rule it breaks and
 holds one EEP that breaks it and nothing else. tests/fixtures/valid holds
 the file they are all derived from, which must pass cleanly.
 
 A rule that has never been seen failing has never been tested, so a rule
-with no fixture is itself reported as a failure.
+with no fixture is itself reported as a failure.  The repository-level R
+rules are exempt: no single EEP file can provoke them, and each was
+provoked by hand in the commit that introduced it.
 
 Usage:
     tests/run-fixtures
@@ -34,8 +36,11 @@ def run(path):
 def rules_in(checker_source):
     """Every rule id the checker can emit, read from the checker itself."""
     text = open(checker_source, encoding="utf-8").read()
-    return set(re.findall(r'add\("([EMR]\d{3})"', text)) | \
-        set(re.findall(r'Finding\("([EMR]\d{3})"', text))
+    # `\s*` because a long call wraps: R007's id sits on the line after
+    # its `Finding(`, and without this the runner could not see R007 at
+    # all.  A file-level rule it cannot see is one it would never demand
+    # a fixture for.
+    return set(re.findall(r'(?:add|Finding)\(\s*"([EMR]\d{3})"', text))
 
 
 def main():

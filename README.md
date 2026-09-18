@@ -30,7 +30,9 @@ publisher requires of the prose. The second holds this repository's own Python
 to the standard [EEP 6](eeps/eep-0006.md) adopts, and skips if `pylint` is not
 installed. The third checks that EEP 1's substitution table still covers the PEP
 1 revision it pins, and skips without a network. Every rule in it names the
-source it comes from. `tests/run-fixtures` proves each rule can fail.
+source it comes from. `tests/run-fixtures` proves each of the 25 file-level
+rules can fail; the seven repository-level rules have no fixture and were
+provoked by hand.
 
 ## The standard
 
@@ -48,7 +50,8 @@ way to it. Read the standard when you want to know what to do.
 - `tools/` holds the checks, and `tools/pylintrc` the configuration EEP 6
   adopts. `pylint` run on its own will not find that file, so run
   `tools/check-python`, or pass `--rcfile=tools/pylintrc` yourself.
-- `tests/` holds one fixture per rule and the runner that proves each can fail.
+- `tests/` holds one fixture per file-level rule and the runner that proves
+  each of those can fail.
 
 ## The series
 

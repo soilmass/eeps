@@ -17,6 +17,7 @@ These EEPs are written but the council has not accepted them, so nothing in
 them binds and nothing from them appears below.
 
 - [EEP 5 - Edison's Code of Conduct](../eeps/eep-0005.md), Draft
+- [EEP 7 - What every Edison project gets](../eeps/eep-0007.md), Draft
 
 ## EEP 1 - EEP Purpose and Guidelines
 
@@ -68,7 +69,7 @@ the process, it is skipped for now, and it is filled as soon as it can be.
 | the Topic header | vacant. Deferred with a trigger in EEP 4: the first EEP that does not fit alongside the others |
 | a Python release, the Python-Version header | vacant |
 | the Language Reference, the Library Reference | `standard/STANDARD.md` for what every project gets, and the documentation of the repository concerned for what one project gets |
-| CI build and lint checks | `tools/check-eeps`, run locally and by `.github/workflows/checks.yml` on every push and pull request |
+| CI build and lint checks | `tests/run-fixtures`, `tools/check-eeps`, `tools/check-python`, `tools/check-adoption` and `tools/build-standard --check`, run locally and by `.github/workflows/checks.yml` on every push and pull request. No job has started on the host yet |
 | PEP 1's Resources: the Index of PEPs, Following Python's Development, the Python Developer's Guide at `devguide.python.org` | vacant |
 | public domain and CC0-1.0-Universal | as PEP 1 says. Every EEP carries the notice, and `LICENSE` puts the whole repository under the same terms. Settled 18-Sep-2026 |
 
@@ -355,10 +356,10 @@ PEP 1 has an author "update `.github/CODEOWNERS` such that any co-author(s) or
 sponsors with write access to the PEP repository are listed for your new file",
 and has an editor check it before merging.
 
-The repository has no host yet, so nobody has write access to it and the entries
-are placeholders. `tools/check-eeps` checks that every EEP has a line, which is
-the part of the step that can be performed today. This is recorded in EEP 1's
-vacant steps.
+The repository is hosted at `github.com/soilmass/eeps` and the owner is its one
+collaborator, so the entries name a real holder of write access and are not
+placeholders. `tools/check-eeps` checks that every EEP has a line, which is rule
+R001.
 
 ### What an editor checks
 
@@ -724,8 +725,9 @@ repository's code were this one disagreement.
 
 **`module-rgx` allows a hyphen.** The guide, section 3.16, says "Always use a
 `.py` filename extension. Never use dashes". Here the linter is enforcing the
-guide correctly, and this repository breaks it: its three entry points are
-`tools/check-eeps`, `tools/check-python` and `tests/run-fixtures`.
+guide correctly, and this repository breaks it: its five entry points are
+`tools/check-eeps`, `tools/check-python`, `tools/check-adoption`,
+`tools/build-standard` and `tests/run-fixtures`.
 
 The owner recorded a departure rather than rename them. They are commands, not
 modules: nothing imports them, each carries a shebang, and each is invoked by
