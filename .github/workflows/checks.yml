@@ -35,3 +35,8 @@ jobs:
       # EEP 6's standard. The tool skips when pylint is absent,
       # so CI is the only place conformance is actually proven.
       - run: tools/check-python
+
+      # Checks EEP 1's substitution table against the pinned PEP 1. It
+      # fetches the text and keeps no copy, so it needs a network and
+      # passes offline. CI is where it actually decides anything.
+      - run: tools/check-adoption

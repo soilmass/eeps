@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""Check that EEP 1's substitution table still covers the pinned PEP 1.
+
+EEP 1's rule of adoption says "PEP 1 is read with the substitutions
+below", which claims the table is complete. Nothing checked that claim,
+and it was false: the PEP 12 row said the template was vacant for four
+commits after EEP 3 filled it, and an audit by hand found seven further
+terms with no row at all.
+
+Doing this mechanically needs the pinned text, and keeping a copy of it
+in the repository is exactly what EEP 1 refused when it chose a pin over
+a copy: "A copy drifts from its original silently. A pin shows drift
+plainly." So this fetches the pinned revision instead, and holds no copy.
+
+The pin is read out of EEP 1 rather than written here, so the document
+and the check cannot disagree about which revision is adopted.
+
+Without a network the check cannot run. It says so and exits 0, the way
+tools/check-python treats a missing pylint: nobody is blocked offline,
+and CI has a network so the check is not skipped where it decides
+anything.
+
+Usage:
+    tools/check-adoption
+
+Exits 0 when every term is covered or the text could not be fetched,
+1 when a term has no row, 2 when the repository is not readable.
+"""
+
+import http.client
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EEP1 = os.path.join(REPO, "eeps", "eep-0001.md")
+RAW = "https://raw.githubusercontent.com/python/peps/%s/peps/pep-0001.rst"
+
+# Named things PEP 1 refers to that a substitution has to answer for.
+# Cross-references to other PEPs are found in the text itself.
+NAMED = [
+    "Contributing Guide", "Steering Council", "core developer",
+    "PEP editors", "Typing Council", "PyPA", "BDFL", "Code of Conduct",
+    "GitHub", "Discourse", "issue tracker", "Python-Version", "Topic",
+    "devguide",
+]
+
+
+def pin(text):
+    """The revision EEP 1 adopts, read from EEP 1."""
+    found = re.search(r"revision\s*\n?`([0-9a-f]{40})`", text)
+    return found.group(1) if found else None
+
+
+def complete(text):
+    """Whether the fetched text is a whole PEP 1 and not a fragment.
+
+    A truncated download is worse than a failed one. It has fewer terms
+    in it, so fewer would be reported missing, and the check would pass
+    for the wrong reason. Both ends are checked before it is trusted.
+    """
+    if not text or len(text) < 20000:
+        return False
+    # "PEP: 1" alone would also match PEP 13's header.
+    return text.startswith("PEP: 1\n") and \
+        "Title: PEP Purpose and Guidelines" in text[:200] and \
+        "Copyright" in text[-2000:]
+
+
+def fetch(revision):
+    """The pinned text, or None when it cannot be reached whole."""
+    for _ in range(3):
+        try:
+            with urllib.request.urlopen(RAW % revision,
+                                        timeout=30) as response:
+                text = response.read().decode("utf-8")
+        except (urllib.error.URLError, http.client.HTTPException,
+                OSError, ValueError):
+            continue
+        if complete(text):
+            return text
+    return None
+
+
+def terms(pep1):
+    """Every term the pinned text refers to, with how often."""
+    found = {}
+    for match in re.finditer(r":pep:`(?:[^`<]*<)?(\d+)", pep1):
+        name = "PEP " + match.group(1)
+        found[name] = found.get(name, 0) + 1
+    for name in NAMED:
+        count = len(re.findall(re.escape(name), pep1))
+        if count:
+            found[name] = count
+    return found
+
+
+def table(eep1):
+    """Just the substitution table's rows.
+
+    The search has to be confined to the table. Matching a term anywhere
+    in EEP 1 passes on the term being mentioned in prose or in a change
+    history entry, which is not the same as it having a row, and that is
+    the claim being checked.
+    """
+    section = re.search(r"^### Substitutions\s*$(.*?)^#{2,3} ",
+                        eep1, re.M | re.S)
+    if not section:
+        return ""
+    return "\n".join(line for line in section.group(1).split("\n")
+                     if line.startswith("|"))
+
+
+def covered_by_rule(eep1):
+    """The PEPs EEP 1's catch-all row answers for."""
+    row = re.search(r"any other PEP that PEP 1 cites \(([^)]*)\)", eep1)
+    if not row:
+        return set()
+    return {"PEP " + n.strip() for n in row.group(1).split(",")}
+
+
+def main():
+    if not os.path.exists(EEP1):
+        print("eeps/eep-0001.md is missing")
+        return 2
+    with open(EEP1, encoding="utf-8") as handle:
+        eep1 = handle.read()
+
+    revision = pin(eep1)
+    if not revision:
+        print("EEP 1 names no pinned revision")
+        return 2
+
+    pep1 = fetch(revision)
+    if pep1 is None:
+        print("The pinned PEP 1 could not be fetched, so the table was not")
+        print("checked. EEP 1 pins %s." % revision)
+        print("This check needs a network and keeps no copy, because EEP 1")
+        print("chose a pin over a copy.")
+        return 0
+
+    rows_text = table(eep1)
+    if not rows_text:
+        print("EEP 1 has no substitution table under a Substitutions "
+              "heading")
+        return 2
+    rule = covered_by_rule(rows_text)
+    missing = []
+    for name, count in sorted(terms(pep1).items(), key=lambda kv: -kv[1]):
+        if name in rows_text or name in rule:
+            continue
+        missing.append((name, count))
+
+    rows = len([r for r in rows_text.strip().split("\n")
+                if not set(r) <= set("|- ")]) - 1
+    if missing:
+        for name, count in missing:
+            print("A001  eeps/eep-0001.md  %r appears %d time(s) in the "
+                  "pinned PEP 1 and has no row" % (name, count))
+        print("\n%d term(s) uncovered, %d row(s) in the table."
+              % (len(missing), rows))
+        return 1
+    print("%d term(s) checked against %d row(s), none uncovered."
+          % (len(terms(pep1)), rows))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
