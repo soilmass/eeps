@@ -382,6 +382,20 @@ def check_eep(path, known_numbers):
         if t not in SECTION_ORDER:
             add("E014", ln, "unknown section %r" % t)
 
+    # E016  A placeholder an author still has to fill must not survive
+    # into an EEP the council has acted on.  A name written in backticks
+    # is a quotation of some other document's template and is left
+    # alone; a bare one is this document's own hole.
+    if headers.get("Status") not in (None, "Draft"):
+        body_only = blank_code("\n".join(text.split("\n")[body_start:]))
+        for m in re.finditer(r"\[([A-Z][A-Z0-9 _/()-]{2,})\]", body_only):
+            if body_only[m.end():m.end() + 1] == "(":
+                continue                      # a Markdown link, not a hole
+            line = body_start + body_only[:m.start()].count("\n") + 1
+            add("E016", line,
+                "unfilled placeholder %r in an EEP whose status is %r"
+                % (m.group(0), headers.get("Status")))
+
     # E015  PEP 1:595-596 makes the notice mandatory; the owner adopted
     # PEP 1's own wording rather than departing from it.
     body = "\n".join(text.split("\n")[body_start:])
