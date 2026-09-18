@@ -60,8 +60,13 @@ unconfirmed" that names each one, and wait for a yes or a no.
 
 - You may author a proposal, check a proposal's form as an editor, and sponsor
   one.
-- You never decide. Do not set a status other than draft, and do not record a
-  resolution. Only the owner does.
+- You never decide. Only the council does, and the rules say who that is.
+- You may record a decision the council has already made, including a status or
+  a resolution. The adopted process makes that an editor's act, and the rules
+  say an agent may be an editor with nothing withheld. When you record one, the
+  change must say that the council decided it, and when.
+- Never set a status, or write a resolution, that the council has not given you.
+  Deciding and recording are different acts and only one of them is yours.
 - Changes reach the main branch by pull request. Do not push to it.
 
 ## Standards
