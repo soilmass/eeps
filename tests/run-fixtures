@@ -74,8 +74,10 @@ def main():
             covered.add(rule)
             print("ok   %-40s %s" % (name, rule))
 
-    # R001 is a repository-level rule with no single-file fixture.
-    for rule in sorted(rules_in(CHECKER) - covered - {"R001"}):
+    # Rules numbered R are repository-level: they check files outside
+    # eeps/, so a single-file fixture cannot exercise them.
+    repo_level = {r for r in rules_in(CHECKER) if r.startswith("R")}
+    for rule in sorted(rules_in(CHECKER) - covered - repo_level):
         failures.append("rule %s has no fixture; it has never been seen "
                         "failing" % rule)
 
