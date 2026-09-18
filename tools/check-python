@@ -41,6 +41,7 @@ TARGETS = [
     os.path.join(REPO, "tools", "check-eeps"),
     os.path.join(REPO, "tools", "check-python"),
     os.path.join(REPO, "tools", "check-adoption"),
+    os.path.join(REPO, "tools", "build-standard"),
     os.path.join(REPO, "tests", "run-fixtures"),
 ]
 

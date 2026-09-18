@@ -40,3 +40,7 @@ jobs:
       # fetches the text and keeps no copy, so it needs a network and
       # passes offline. CI is where it actually decides anything.
       - run: tools/check-adoption
+
+      # The standard is generated and committed, so it can go stale. This
+      # refuses a tree whose STANDARD.md is not what the EEPs produce.
+      - run: tools/build-standard --check
