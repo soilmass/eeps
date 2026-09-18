@@ -36,8 +36,11 @@ def run(path):
 def rules_in(checker_source):
     """Every rule id the checker can emit, read from the checker itself."""
     text = open(checker_source, encoding="utf-8").read()
-    return set(re.findall(r'add\("([EMR]\d{3})"', text)) | \
-        set(re.findall(r'Finding\("([EMR]\d{3})"', text))
+    # `\s*` because a long call wraps: R007's id sits on the line after
+    # its `Finding(`, and without this the runner could not see R007 at
+    # all.  A file-level rule it cannot see is one it would never demand
+    # a fixture for.
+    return set(re.findall(r'(?:add|Finding)\(\s*"([EMR]\d{3})"', text))
 
 
 def main():

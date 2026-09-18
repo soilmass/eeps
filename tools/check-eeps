@@ -720,7 +720,12 @@ def check_standard():
 def main(argv):
     targets = argv[1:]
     eeps_dir = os.path.join(REPO, "eeps")
-    eep_paths = sorted(
+    # The whole series, whatever was asked for.  E012 asks whether a
+    # `Requires` names an EEP that exists, and an EEP exists or not
+    # independently of which files this run was pointed at.  Deriving the
+    # numbers from the targets made `tools/check-eeps eeps/eep-0007.md`
+    # report that EEP 1 does not exist.
+    series_paths = sorted(
         os.path.join(eeps_dir, f)
         for f in os.listdir(eeps_dir)
         if f.endswith(".md")
@@ -730,6 +735,7 @@ def main(argv):
         eep_paths = [os.path.abspath(t) for t in targets]
         md_paths = list(eep_paths)
     else:
+        eep_paths = list(series_paths)
         md_paths = list(eep_paths)
         for root, dirs, files in os.walk(REPO):
             dirs[:] = [d for d in dirs
@@ -739,7 +745,7 @@ def main(argv):
                     md_paths.append(os.path.join(root, f))
 
     numbers = set()
-    for p in eep_paths:
+    for p in sorted(set(series_paths) | set(eep_paths)):
         m = re.match(r"^eep-(\d{4})\.md$", os.path.basename(p))
         if m:
             numbers.add(int(m.group(1)))
