@@ -1,9 +1,8 @@
 # Code of conduct
 
-Edison's code of conduct is proposed by [EEP 5](../eeps/eep-0005.md). The
-council has not accepted it, so it is still `Draft` and nothing in it binds yet.
-This file exists so that it can be found from the repository root, where a
-reader and the host both look for it.
+Edison's code of conduct is [EEP 5](../eeps/eep-0005.md), which the council
+accepted on 18-Sep-2026. This file exists so that it can be found from the
+repository root, where a reader and the host both look for it.
 
 ## What the code is
 
