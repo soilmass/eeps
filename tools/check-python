@@ -7,8 +7,8 @@ script runs pylint with that configuration, as the guide instructs:
 
     Run `pylint` over your code using this pylintrc.
 
-Edison's copy of the configuration carries one divergence, which its own
-header and EEP 6 both record. Where the guide and the tool that checks it
+Edison's copy of the configuration carries two divergences, which its
+own header and EEP 6 both record. Where the guide and the tool that checks it
 disagree, the guide is right.
 
 pylint is not a dependency of this repository. When it is absent the
@@ -68,8 +68,8 @@ def main(argv):
             print("missing: %s" % os.path.relpath(p, REPO))
         return 2
     if not os.path.exists(RCFILE):
-        print(".pylintrc is missing; EEP 6 says it is what defines the "
-              "standard")
+        print("tools/pylintrc is missing; EEP 6 says it is what defines "
+              "the standard")
         return 2
 
     run = pylint()

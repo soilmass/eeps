@@ -1,10 +1,13 @@
 # PEP 1, as adopted by EEP 1, has an editor "ensure all CI build and lint
 # checks pass without errors" before merging an EEP.
 #
-# This workflow cannot run yet: the repository has no host. EEP 1 records
-# that as a vacant step. The checks themselves run locally today, so the
-# lint half of the substitution is filled and this file is what fills the
-# other half the moment the repository lives somewhere.
+# This workflow triggers on every push and pull request against
+# github.com/soilmass/eeps. No job has started yet. GitHub refuses each
+# one with "The job was not started because recent account payments have
+# failed or your spending limit needs to be increased." The checks run
+# locally and pass, so the lint half of the substitution is filled; the
+# half this file is meant to fill has never executed. EEP 1 records that
+# as an open issue.
 name: checks
 
 on:

@@ -2,10 +2,10 @@
 #
 # This is Google's pylintrc at revision
 # 3b8822983dc779c498961cc86332a28c07590f64 of pylintrc in
-# github.com/google/styleguide, the revision EEP 6 pins, with one
-# divergence and no other change.
+# github.com/google/styleguide, the revision EEP 6 pins, with two
+# divergences and no other change.
 #
-# The divergence: consider-using-f-string is disabled.
+# The first divergence: consider-using-f-string is disabled.
 #
 # Google's own style guide, section 3.10, permits the % operator and
 # lists it under "Yes":
@@ -24,18 +24,20 @@
 #
 #     Always use a `.py` filename extension. Never use dashes.
 #
-# This repository's three entry points are commands, not modules:
+# This repository's five entry points are commands, not modules:
 # nothing imports them, they carry a shebang, and they are invoked as
-# tools/check-eeps. The owner recorded a departure for command-line
-# entry points rather than rename them, which EEP 2 permits so long as
-# the departure is written down and reasoned. EEP 6 carries it.
+# tools/check-eeps, tools/check-python, tools/check-adoption,
+# tools/build-standard and tests/run-fixtures. The owner recorded a
+# departure for command-line entry points rather than rename them, which
+# EEP 2 permits so long as the departure is written down and reasoned.
+# EEP 6 carries it.
 #
 # The relaxation is deliberately narrow. Only module-rgx changes, so
 # invalid-name still governs every variable, constant, class, argument
 # and function in the repository.
 #
-# EEP 6 records both divergences. tools/check-eeps refuses a .pylintrc
-# whose divergences are not the ones EEP 6 lists.
+# EEP 6 records both divergences. tools/check-eeps refuses a
+# tools/pylintrc whose divergences are not the ones EEP 6 lists.
 
 # This Pylint rcfile contains a best-effort configuration to uphold the
 # best-practices and style described in the Google Python style guide:

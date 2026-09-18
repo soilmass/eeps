@@ -73,7 +73,7 @@ REQUIRED_HEADERS = [
     "Post-History",
 ]
 
-# PEP 1:627-628.
+# PEP 1:628-629.
 STATUSES = [
     "Draft",
     "Active",
@@ -612,7 +612,7 @@ def check_python_standard():
 
     EEP 6 adopts a style guide at a pinned revision and a linter
     configuration at the same one.  Three files name that revision: the
-    EEP, `.pylintrc` and `tools/check-python`.  Nothing stopped them
+    EEP, `tools/pylintrc` and `tools/check-python`.  Nothing stopped them
     drifting apart, which is how EEP 1's PEP 12 row came to say the
     template was vacant for four commits after EEP 3 filled it.
     """
