@@ -25,6 +25,7 @@ Exits 0 when every check passes, 1 when any fails, 2 when it could not run.
 
 import os
 import re
+import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -412,6 +413,22 @@ def check_eep(path, known_numbers):
     return findings
 
 
+def eep_titles():
+    """Every EEP's number and title, for recognising a cited title."""
+    out = {}
+    folder = os.path.join(REPO, "eeps")
+    if not os.path.isdir(folder):
+        return out
+    for name in sorted(os.listdir(folder)):
+        if not re.match(r"^eep-\d{4}\.md$", name):
+            continue
+        with open(os.path.join(folder, name), encoding="utf-8") as fh:
+            headers, _, _, err = split_front_matter(fh.read())
+        if not err and headers:
+            out[headers.get("EEP")] = headers.get("Title")
+    return out
+
+
 def check_markdown(path):
     """Check any Markdown file against Google's guides."""
     findings = []
@@ -489,11 +506,16 @@ def check_markdown(path):
     if len([h for h in heads if h[0] == 1]) != 1:
         add("M007", 1, "expected exactly one H1")
 
-    # M008  Google: sentence case for headings and titles.  The H1 is
-    # exempt in an EEP because it restates the Title header, which PEP 1
-    # governs; E013 checks that instead.
+    # M008  Google: sentence case for headings and titles.  A heading
+    # that cites an EEP by number and title is exempt, because EEP 3
+    # rules that "Document titles are names and keep the capitals their
+    # author gave them".  That covers an EEP's own H1, which restates its
+    # Title header, and a citation of one anywhere else.
+    cited = {"EEP %s - %s" % (n, t) for n, t in eep_titles().items()}
     for level, title, n in heads:
         if level == 1 and os.path.basename(path).startswith("eep-"):
+            continue
+        if title in cited:
             continue
         if not is_sentence_case(title):
             add("M008", n, "heading %r is not sentence case" % title)
@@ -647,6 +669,27 @@ def check_python_standard():
     return findings
 
 
+def check_standard():
+    """The generated standard must match the EEPs it came from.
+
+    A generated file committed to a repository drifts the moment someone
+    edits it instead of its source.  tools/build-standard --check rebuilds
+    from the EEPs and compares, so the outputs cannot quietly stop being
+    what the series says.
+    """
+    tool = os.path.join(REPO, "tools", "build-standard")
+    if not os.path.exists(tool):
+        return [Finding("R006", tool, 0, "tools/build-standard is missing")]
+    proc = subprocess.run(
+        [sys.executable, tool, "--check"],
+        capture_output=True, text=True, check=False)
+    if proc.returncode == 0:
+        return []
+    out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    first = out.split("\n")[0] if out else "the standard is out of date"
+    return [Finding("R006", os.path.join(REPO, "STANDARD.md"), 0, first)]
+
+
 def main(argv):
     targets = argv[1:]
     eeps_dir = os.path.join(REPO, "eeps")
@@ -683,6 +726,7 @@ def main(argv):
         findings += check_codeowners(eep_paths)
         findings += check_repo_files()
         findings += check_python_standard()
+        findings += check_standard()
 
     for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
         print(f)

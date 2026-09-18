@@ -32,6 +32,15 @@ installed. The third checks that EEP 1's substitution table still covers the PEP
 1 revision it pins, and skips without a network. Every rule in it names the
 source it comes from. `tests/run-fixtures` proves each rule can fail.
 
+## The standard
+
+[STANDARD.md](STANDARD.md) is what building for Edison requires: the rules that
+are in force, with no argument around them. It is generated from the EEPs the
+council has accepted, so it is never edited directly.
+
+Read an EEP when you want to know why a rule exists, or what was rejected on the
+way to it. Read the standard when you want to know what to do.
+
 ## The series
 
 The series is the files in [`eeps/`](eeps/). The header at the top of each file
