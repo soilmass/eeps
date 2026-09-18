@@ -576,10 +576,10 @@ def check_repo_files():
     # R003  The code of conduct, and it may not outrun the EEP that
     # adopts it: an unfilled placeholder is tolerable only while that
     # EEP is still Draft.
-    path = os.path.join(REPO, "CODE_OF_CONDUCT.md")
+    path = os.path.join(REPO, ".github", "CODE_OF_CONDUCT.md")
     if not os.path.exists(path):
         findings.append(
-            Finding("R003", path, 0, "CODE_OF_CONDUCT.md is missing"))
+            Finding("R003", path, 0, ".github/CODE_OF_CONDUCT.md is missing"))
         return findings
     with open(path, encoding="utf-8") as fh:
         text = fh.read()
@@ -587,13 +587,14 @@ def check_repo_files():
     if not m:
         findings.append(Finding(
             "R003", path, 0,
-            "CODE_OF_CONDUCT.md names no EEP as the code it adopts"))
+            ".github/CODE_OF_CONDUCT.md names no EEP as the code it adopts"))
         return findings
     target = os.path.join(REPO, "eeps", m.group(1) + ".md")
     if not os.path.exists(target):
         findings.append(Finding(
             "R003", path, 0,
-            "CODE_OF_CONDUCT.md names %s, which does not exist" % m.group(1)))
+            ".github/CODE_OF_CONDUCT.md names %s, which does not exist"
+                % m.group(1)))
         return findings
     if re.search(r"\[[A-Z][A-Z0-9 _/()-]{2,}\](?!\()", blank_code(text)):
         with open(target, encoding="utf-8") as fh:
@@ -601,8 +602,8 @@ def check_repo_files():
         if (headers or {}).get("Status") not in (None, "Draft"):
             findings.append(Finding(
                 "R003", path, 0,
-                "CODE_OF_CONDUCT.md has an unfilled placeholder but %s is "
-                "no longer Draft" % m.group(1)))
+                ".github/CODE_OF_CONDUCT.md has an unfilled placeholder but %s "
+                "is no longer Draft" % m.group(1)))
     return findings
 
 
@@ -616,19 +617,19 @@ def check_python_standard():
     template was vacant for four commits after EEP 3 filled it.
     """
     findings = []
-    rc = os.path.join(REPO, ".pylintrc")
+    rc = os.path.join(REPO, "tools", "pylintrc")
     tool = os.path.join(REPO, "tools", "check-python")
 
     # R004  The configuration exists and still carries the settings the
     # guide is checked by, and diverges from Google's only where EEP 6
     # says it does.
     if not os.path.exists(rc):
-        return [Finding("R004", rc, 0, ".pylintrc is missing")]
+        return [Finding("R004", rc, 0, "tools/pylintrc is missing")]
     with open(rc, encoding="utf-8") as fh:
         conf = fh.read()
     if "max-line-length=80" not in conf:
         findings.append(Finding(
-            "R004", rc, 0, ".pylintrc does not set max-line-length=80"))
+            "R004", rc, 0, "tools/pylintrc does not set max-line-length=80"))
 
     adopting = [p for p in sorted(os.listdir(os.path.join(REPO, "eeps")))
                 if p.endswith(".md")]
@@ -664,7 +665,7 @@ def check_python_standard():
     if pin not in conf:
         findings.append(Finding(
             "R005", rc, 0,
-            ".pylintrc does not name the revision %s that "
+            "tools/pylintrc does not name the revision %s that "
             "tools/check-python uses" % pin[:12]))
     return findings
 
@@ -712,7 +713,8 @@ def check_standard():
         return []
     out = ((proc.stdout or "") + (proc.stderr or "")).strip()
     first = out.split("\n")[0] if out else "the standard is out of date"
-    return [Finding("R006", os.path.join(REPO, "STANDARD.md"), 0, first)]
+    return [Finding("R006", os.path.join(REPO, "standard", "STANDARD.md"),
+                    0, first)]
 
 
 def main(argv):

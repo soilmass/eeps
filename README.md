@@ -34,12 +34,21 @@ source it comes from. `tests/run-fixtures` proves each rule can fail.
 
 ## The standard
 
-[STANDARD.md](STANDARD.md) is what building for Edison requires: the rules that
-are in force, with no argument around them. It is generated from the EEPs the
-council has accepted, so it is never edited directly.
+[the standard](standard/STANDARD.md) is what building for Edison requires: the
+rules that are in force, with no argument around them. It is generated from the
+EEPs the council has accepted, so it is never edited directly.
 
 Read an EEP when you want to know why a rule exists, or what was rejected on the
 way to it. Read the standard when you want to know what to do.
+
+## Where things are
+
+- `eeps/` is the series: what was proposed, argued and decided.
+- `standard/` is generated from it. Never edit it; change the EEP instead.
+- `tools/` holds the checks, and `tools/pylintrc` the configuration EEP 6
+  adopts. `pylint` run on its own will not find that file, so run
+  `tools/check-python`, or pass `--rcfile=tools/pylintrc` yourself.
+- `tests/` holds one fixture per rule and the runner that proves each can fail.
 
 ## The series
 
@@ -54,8 +63,8 @@ EEP 1 says how. Most changes do not need a proposal.
 ## Code of conduct
 
 [EEP 5](eeps/eep-0005.md) adopts one, by pin.
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) says where to find it and where a
-report goes.
+[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) says where to find it and where
+a report goes.
 
 ## License
 

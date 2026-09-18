@@ -16,11 +16,11 @@ any section to read the argument behind it.
 These EEPs are written but the council has not accepted them, so nothing in
 them binds and nothing from them appears below.
 
-- [EEP 5 - Edison's Code of Conduct](eeps/eep-0005.md), Draft
+- [EEP 5 - Edison's Code of Conduct](../eeps/eep-0005.md), Draft
 
 ## EEP 1 - EEP Purpose and Guidelines
 
-From [EEP 1](eeps/eep-0001.md), accepted 18-Sep-2026.
+From [EEP 1](../eeps/eep-0001.md), accepted 18-Sep-2026.
 
 ### The pin
 
@@ -67,7 +67,7 @@ the process, it is skipped for now, and it is filled as soon as it can be.
 | "incorporated into the main source code repository" | that project has shipped |
 | the Topic header | vacant. Deferred with a trigger in EEP 4: the first EEP that does not fit alongside the others |
 | a Python release, the Python-Version header | vacant |
-| the Language Reference, the Library Reference | `STANDARD.md` for what every project gets, and the documentation of the repository concerned for what one project gets |
+| the Language Reference, the Library Reference | `standard/STANDARD.md` for what every project gets, and the documentation of the repository concerned for what one project gets |
 | CI build and lint checks | `tools/check-eeps`, run locally and by `.github/workflows/checks.yml` on every push and pull request |
 | PEP 1's Resources: the Index of PEPs, Following Python's Development, the Python Developer's Guide at `devguide.python.org` | vacant |
 | public domain and CC0-1.0-Universal | as PEP 1 says. Every EEP carries the notice, and `LICENSE` puts the whole repository under the same terms. Settled 18-Sep-2026 |
@@ -92,7 +92,7 @@ never the council.
 
 ## EEP 2 - The Foundation of Edison
 
-From [EEP 2](eeps/eep-0002.md), accepted 18-Sep-2026.
+From [EEP 2](../eeps/eep-0002.md), accepted 18-Sep-2026.
 
 ### What Edison is
 
@@ -162,7 +162,7 @@ built, and the builder asks.
 
 ## EEP 3 - EEP Template and Format
 
-From [EEP 3](eeps/eep-0003.md), accepted 18-Sep-2026.
+From [EEP 3](../eeps/eep-0003.md), accepted 18-Sep-2026.
 
 ### What this document is
 
@@ -477,7 +477,7 @@ CC0-1.0-Universal license, whichever is more permissive.
 
 ## EEP 4 - Governance of the EEP series
 
-From [EEP 4](eeps/eep-0004.md), accepted 18-Sep-2026.
+From [EEP 4](../eeps/eep-0004.md), accepted 18-Sep-2026.
 
 ### The council
 
@@ -642,7 +642,7 @@ one, and the council decides it. This is the clause EEP 1 uses on itself.
 
 ## EEP 6 - The standard Edison's code is held to
 
-From [EEP 6](eeps/eep-0006.md), accepted 18-Sep-2026.
+From [EEP 6](../eeps/eep-0006.md), accepted 18-Sep-2026.
 
 ### The pin
 
@@ -699,7 +699,7 @@ tooling four times, three of them inside one illustrative docstring.
 | The guide says | Read as |
 |---|---|
 | `blaze`, `google3`, `//foo/bar:foo_test` in the golden-file example | vacant. The example is teaching a docstring, not a build system |
-| "Run `pylint` over your code using this pylintrc" | as it says. `.pylintrc` here is that file at the pin, and `tools/check-python` runs it |
+| "Run `pylint` over your code using this pylintrc" | as it says. `tools/pylintrc` here is that file at the pin, and `tools/check-python` runs it |
 | "Google Python Style" as the name of the thing | Edison's Python style, which is Google's at the pinned revision |
 
 ### Where the guide and its linter disagree
@@ -708,8 +708,8 @@ Google's `pylintrc` is the tool that checks Google's guide. In two places it
 does not match the guide it checks. In both, **the guide is right and the tool
 has a defect**, which is the rule EEP 1 already applies to itself against PEP 1.
 
-Both divergences are listed here and in `.pylintrc`'s own header, and
-`tools/check-eeps` refuses a `.pylintrc` whose divergences are not these.
+Both divergences are listed here and in `tools/pylintrc`'s own header, and
+`tools/check-eeps` refuses a `tools/pylintrc` whose divergences are not these.
 
 **`consider-using-f-string` is disabled.** The guide, section 3.10, permits the
 `%` operator and lists it under "Yes":
@@ -739,7 +739,7 @@ argument name and watching it fail.
 
 ### How it is checked
 
-`tools/check-python` runs `pylint` with `.pylintrc` over the repository's
+`tools/check-python` runs `pylint` with `tools/pylintrc` over the repository's
 Python.
 
 `pylint` is not a dependency. When it is absent the tool says so and exits zero,
@@ -749,9 +749,9 @@ anything. A green local run therefore does not prove conformance, and that is
 stated rather than hidden.
 
 Two rules in `tools/check-eeps` keep the configuration honest. One refuses a
-repository whose `.pylintrc` is missing or has lost the pinned settings. The
-other refuses one whose divergences are not the two above, so the file cannot
-quietly acquire a third.
+repository whose `tools/pylintrc` is missing or has lost the pinned settings.
+The other refuses one whose divergences are not the two above, so the file
+cannot quietly acquire a third.
 
 ### A language that is not Python
 
