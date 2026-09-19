@@ -30,7 +30,7 @@ publisher requires of the prose. The second holds this repository's own Python
 to the standard [EEP 6](eeps/eep-0006.md) adopts, and skips if `pylint` is not
 installed. The third checks that EEP 1's substitution table still covers the PEP
 1 revision it pins, and skips without a network. Every rule in it names the
-source it comes from. `tests/run-fixtures` proves each of the 25 file-level
+source it comes from. `tests/run-fixtures` proves each of the 26 file-level
 rules can fail; the seven repository-level rules have no fixture and were
 provoked by hand.
 

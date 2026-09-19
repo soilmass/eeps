@@ -73,6 +73,27 @@ REQUIRED_HEADERS = [
     "Post-History",
 ]
 
+# EEP 8 gives the pin sentence one fixed form so that every adoption
+# in the series can be found mechanically, instead of one tool being
+# hardcoded to one EEP.  Whitespace is collapsed before matching, so a
+# pin that wraps across lines reads the same as one that does not.
+PIN_SENTENCE = re.compile(
+    r"at revision `([0-9a-f]{40})` of `([^`]+)` in "
+    r"`github\.com/([\w.-]+)/([\w.-]+)`"
+    r"(?:, committed (\d{2}-[A-Z][a-z]{2}-\d{4}))?")
+
+# EEP 8: "Later changes to <the adopted text> do not change Edison's
+# <what it governs> until the pin is moved."
+DRIFT_SENTENCE = re.compile(
+    r"Later changes to .{1,60}? do not change Edison's .{1,40}? "
+    r"until the pin is moved\.")
+
+
+def flatten(text):
+    """The text with every run of whitespace collapsed to one space."""
+    return re.sub(r"\s+", " ", text)
+
+
 # PEP 1:628-629.
 STATUSES = [
     "Draft",
@@ -399,6 +420,24 @@ def check_eep(path, known_numbers):
             add("E016", line,
                 "unfilled placeholder %r in an EEP whose status is %r"
                 % (m.group(0), headers.get("Status")))
+
+    # E017  EEP 8.  An EEP that announces a pin is an adoption EEP, and
+    # EEP 8 says what one carries.  The heading is the trigger because
+    # it is the thing an author writes first and cannot half-write.
+    if re.search(r"^### The pin\s*$", text, re.M):
+        flat_body = flatten(text)
+        if not PIN_SENTENCE.search(flat_body):
+            add("E017", 1, "has a pin heading but no pin sentence in "
+                           "EEP 8's form")
+        else:
+            for m in PIN_SENTENCE.finditer(flat_body):
+                if not m.group(5):
+                    add("E017", 1,
+                        "the pin of %r names no committed date" % m.group(2))
+        if not DRIFT_SENTENCE.search(flat_body):
+            add("E017", 1, "has a pin but no drift sentence in EEP 8's form")
+        if not re.search(r"^### Substitutions\s*$", text, re.M):
+            add("E017", 1, "has a pin but no Substitutions table")
 
     # E015  PEP 1:595-596 makes the notice mandatory; the owner adopted
     # PEP 1's own wording rather than departing from it.
