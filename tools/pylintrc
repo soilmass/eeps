@@ -1,9 +1,16 @@
 # Edison's pylint configuration, at tools/pylintrc.
 #
-# This is Google's pylintrc at revision
-# 3b8822983dc779c498961cc86332a28c07590f64 of pylintrc in
-# github.com/google/styleguide, the revision EEP 6 pins, with two
+# This is a working copy of `pylintrc` at revision
+# `3b8822983dc779c498961cc86332a28c07590f64` in
+# `github.com/google/styleguide`, the revision EEP 6 pins, with two
 # divergences and no other change.
+#
+# EEP 8 requires a working copy to name the revision it was taken from
+# and every divergence from it, and requires something to refuse a
+# divergence that is not recorded. The sentence above is what
+# tools/check-adoption rule A003 reads to find the upstream text; it
+# then diffs this file against it and refuses any line that differs
+# without an "# Edison:" marker on it or on the line before.
 #
 # The first divergence: consider-using-f-string is disabled.
 #

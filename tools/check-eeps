@@ -676,8 +676,17 @@ def check_python_standard():
     for name in adopting:
         with open(os.path.join(REPO, "eeps", name), encoding="utf-8") as fh:
             eep_text += fh.read()
-    for n, line in enumerate(conf.split("\n"), 1):
-        if "# Edison:" not in line or line.lstrip().startswith("#"):
+    # A divergence may mark itself on its own line or on the line
+    # above it, and both forms are in use here.  Reading only the
+    # inline form meant that of the two divergences this rule exists to
+    # police, it validated one: module-rgx marks itself on the line
+    # before and was never checked against any EEP.
+    conf_lines = conf.split("\n")
+    for n, line in enumerate(conf_lines, 1):
+        if line.lstrip().startswith("#") or "=" not in line:
+            continue
+        before = conf_lines[n - 2] if n >= 2 else ""
+        if "# Edison:" not in line and "# Edison:" not in before:
             continue
         setting = line.split("=")[0].split()[0].strip().rstrip(",")
         if setting not in eep_text:
@@ -718,11 +727,17 @@ def check_no_artifacts():
     already tracked.
     """
     findings = []
-    proc = subprocess.run(
-        ["git", "-C", REPO, "ls-files"],
-        capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(
+            ["git", "-C", REPO, "ls-files"],
+            capture_output=True, text=True, check=False)
+    except OSError:
+        return None
     if proc.returncode != 0:
-        return []
+        # EEP 7: a check that cannot decide says which, and does not
+        # claim to have decided.  This returned [] before, which reads
+        # in the summary as "no findings".
+        return None
     for name in proc.stdout.split("\n"):
         if not name.strip():
             continue
@@ -789,6 +804,16 @@ def main(argv):
         if m:
             numbers.add(int(m.group(1)))
 
+    # EEP 7 requires a check that cannot decide to say which.  E003
+    # needs PyYAML, which is not a dependency of the series; before
+    # this, its absence dropped the rule and still printed "no
+    # findings".  The test is the same one the rule itself makes, so
+    # the note cannot disagree with what happened.
+    skipped = []
+    if parses_as_yaml("---\nEEP: 0\n---\n") is None:
+        skipped.append("E003 was not checked: PyYAML is not installed, so "
+                       "the front matter was not parsed as YAML")
+
     findings = []
     for p in eep_paths:
         findings += check_eep(p, numbers)
@@ -799,7 +824,12 @@ def main(argv):
         findings += check_repo_files()
         findings += check_python_standard()
         findings += check_standard()
-        findings += check_no_artifacts()
+        artifacts = check_no_artifacts()
+        if artifacts is None:
+            skipped.append("R007 was not checked: git ls-files failed, so "
+                           "the tracked file list could not be read")
+        else:
+            findings += artifacts
 
     for f in sorted(findings, key=lambda f: (f.path, f.line, f.rule)):
         print(f)
@@ -807,7 +837,15 @@ def main(argv):
     checked = len(set(md_paths))
     if findings:
         print("\n%d finding(s) across %d file(s)." % (len(findings), checked))
+        for note in skipped:
+            print(note)
         return 1
+    if skipped:
+        print("%d file(s) checked, no findings in the rules that ran."
+              % checked)
+        for note in skipped:
+            print(note)
+        return 0
     print("%d file(s) checked, no findings." % checked)
     return 0
 
