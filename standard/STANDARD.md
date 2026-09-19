@@ -11,6 +11,13 @@ An EEP says why a rule exists, what was rejected on the way to it, and
 what is still undecided. None of that is repeated here. Follow the link on
 any section to read the argument behind it.
 
+## What is not here yet
+
+These EEPs are written but the council has not accepted them, so nothing in
+them binds and nothing from them appears below.
+
+- [EEP 9 - How Edison decides what to depend on](../eeps/eep-0009.md), Draft
+
 ## EEP 1 - EEP Purpose and Guidelines
 
 From [EEP 1](../eeps/eep-0001.md), accepted 18-Sep-2026.
