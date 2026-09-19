@@ -98,6 +98,45 @@
       "status": "Active",
       "title": "The standard Edison's code is held to",
       "type": "Process"
+    },
+    {
+      "cited_revisions": [],
+      "eep": 7,
+      "path": "eeps/eep-0007.md",
+      "resolution": "18-Sep-2026 https://github.com/soilmass/eeps/pull/18",
+      "status": "Active",
+      "title": "What every Edison project gets",
+      "type": "Process"
+    },
+    {
+      "cited_revisions": [
+        {
+          "path": "peps/pep-0001.rst",
+          "repository": "python/peps",
+          "revision": "74fc18d540c2ea9d2a6f1ba852d0a56e10e1057d"
+        },
+        {
+          "path": "docs/_docs/front-matter.md",
+          "repository": "jekyll/jekyll",
+          "revision": "8c3934fd0271dc709b3d3b91f8b78e12274eeae6"
+        },
+        {
+          "path": "docs/code-of-conduct.md",
+          "repository": "google/new-project",
+          "revision": "a4219cca1f010106e7d2734340ed6f64472f2811"
+        },
+        {
+          "path": "pyguide.md",
+          "repository": "google/styleguide",
+          "revision": "3b8822983dc779c498961cc86332a28c07590f64"
+        }
+      ],
+      "eep": 8,
+      "path": "eeps/eep-0008.md",
+      "resolution": "18-Sep-2026 https://github.com/soilmass/eeps/pull/18",
+      "status": "Active",
+      "title": "How Edison adopts an outside standard",
+      "type": "Process"
     }
   ],
   "generated_by": "tools/build-standard"
