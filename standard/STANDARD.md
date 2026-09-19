@@ -11,14 +11,6 @@ An EEP says why a rule exists, what was rejected on the way to it, and
 what is still undecided. None of that is repeated here. Follow the link on
 any section to read the argument behind it.
 
-## What is not here yet
-
-These EEPs are written but the council has not accepted them, so nothing in
-them binds and nothing from them appears below.
-
-- [EEP 7 - What every Edison project gets](../eeps/eep-0007.md), Draft
-- [EEP 8 - How Edison adopts an outside standard](../eeps/eep-0008.md), Draft
-
 ## EEP 1 - EEP Purpose and Guidelines
 
 From [EEP 1](../eeps/eep-0001.md), accepted 18-Sep-2026.
@@ -859,3 +851,306 @@ More importantly, most of a style guide is not machine-checkable. The guide
 binds; the linter reaches the part of it a linter can reach. Passing
 `tools/check-python` is not the same as conforming, and nobody should read it
 that way.
+
+## EEP 7 - What every Edison project gets
+
+From [EEP 7](../eeps/eep-0007.md), accepted 18-Sep-2026.
+
+### What this binds
+
+Every repository Edison owns.
+
+This is EEP 6's reading and the reasoning is EEP 6's. The council decides this
+document; this document binds the repositories. EEP 4 sets the council's remit
+at the series and says it is "not a charter for the company, for client work, or
+for any repository Edison owns". That is untouched: nothing here gives the
+council authority over what a repository does, only over what every repository
+already owes.
+
+### What is settled here and what is settled in the project
+
+Everything below is a floor. What one project gets is written in that project,
+as EEP 2 says.
+
+A repository may depart from anything here, and the departure is written down in
+that repository with its reason. **Only the council may sign a departure.** EEP
+2's departure clause is narrower than it first appears: it covers the owner
+departing from a standard in EEP 2's ranking, and says nothing about a
+repository departing from an EEP. Left unstated, this section would make its own
+floor optional at the discretion of whoever wrote the repository, which is not a
+floor. The council decides this document, so the council is who may excuse a
+repository from it.
+
+### The entry point
+
+Every repository has a `README.md` in its root. It is the entry point: it says
+what the repository is, where its rules are, and where things live.
+
+Any file that tells an agent how to work in the repository points at the entry
+point, and names no path inside the repository other than the entry point, so
+that files can move without it going stale.
+
+Seen working here: `CLAUDE.md` sends its reader to "the README at the repository
+root" and says why it names nothing else. The only paths it gives are the two
+Google style guides, which are outside this repository and cannot go stale as it
+changes.
+
+### The license
+
+Every repository has a `LICENSE` file in its root stating its terms, and its
+README says what those terms cover.
+
+The terms are decided per repository and are not settled here. This repository
+is under public domain or CC0-1.0-Universal because EEP 1 settled that for the
+series. Nothing in that decision reaches client work, which Edison is in no
+position to place in the public domain on a client's behalf.
+
+### Written and generated are kept apart
+
+Anything a tool produces is either not tracked, or tracked together with a check
+that refuses it once it no longer matches what produced it. Nothing generated is
+edited by hand, and the generated file says so in itself.
+
+Seen working here: `.gitignore` keeps build artefacts out and its comment gives
+the rule; rule `R007` in `tools/check-eeps` refuses a tracked artefact, because
+ignoring can be overridden with `git add -f` and refusing cannot; `standard/` is
+tracked because it is the output this repository exists to publish, and
+`tools/build-standard --check` refuses it once it has drifted from the EEPs.
+
+### The checks
+
+Every repository has at least one command that decides whether the repository is
+acceptable. It runs locally, and it is wired to run on the host for every push
+and every pull request.
+
+Every rule the command enforces names the source it comes from, in a comment
+above the rule or in the docstring of the function that holds it. A rule with no
+source does not belong in it.
+
+Where a check cannot decide, because something it needs is absent, it says which
+and does not claim to have decided.
+
+**This repository does not fully meet the last two.** `tools/check-eeps` opens
+by naming the only three sources a rule may come from and stating that a rule
+with no source does not belong in the file. Twenty-nine of its thirty-two rules
+carry that comment and `R001` carries `PEP 1:793-794` in the docstring of
+its function, but `R006` and `R007` give rationale and name no source. Two of
+its degradations are silent rather than spoken: without PyYAML it drops rule
+`E003` and still prints "no findings", and `check_no_artifacts` returns nothing
+when `git ls-files` fails. `tools/check-python` and `tools/check-adoption` both
+print their reason and exit zero, which is the behaviour this section asks for.
+
+The host half has never happened here. The workflow is wired and triggers on
+every push and pull request; no job has ever started, because GitHub refuses
+them over the account's billing. So that clause rests on PEP 1's editor step as
+EEP 1 substitutes it, and not on anything seen working.
+
+### A rule is seen failing before it is trusted
+
+A rule that has never been seen failing has never been tested. Every rule has
+something that provokes it, and the provocation is kept: a fixture where one
+file can provoke it, and otherwise a record, in the change that introduced or
+repaired the rule, of how it was provoked by hand.
+
+Seen working here: `tests/fixtures/` holds one directory per file-level rule,
+twenty-five of them, each the known-good file with exactly one thing wrong.
+`tests/run-fixtures` reads the rule identifiers out of the checker itself, so a
+file-level rule with no fixture is a failure in its own right. The seven
+repository-level rules cannot be provoked by one file and the runner exempts
+them; each has instead been provoked by hand, and the change that did so says
+how.
+
+### What is taken from outside is pinned, not copied
+
+Where a repository takes a standard, a configuration or a text from outside, it
+adopts it at one exact revision. It does not restate it in its own words. A
+restatement drifts from its original in silence; a pin shows drift plainly, as a
+newer revision existing.
+
+Where a working copy is unavoidable, because a tool has to read the file
+locally, the copy names the revision it was taken from and every divergence from
+it, and something refuses a divergence that is not recorded.
+
+Seen working here three times as a pin with no copy: EEP 1 pins PEP 1, EEP 3
+pins Jekyll's front-matter format, and EEP 6 pins Google's Python style guide.
+Twice as a working copy: `tools/pylintrc`, which is Google's file at the pin
+with its two divergences recorded in its own header, and `LICENSE`, which is the
+CC0 text itself because a license has to be carried to be granted. A fourth
+pin, EEP 5's of Google's code of conduct, was accepted on 18-Sep-2026 and is a
+pin with no copy: the pointer file states the revision and does not reproduce
+the text.
+
+The refusal on the working copy is weaker than this section asks. `R004` reads
+only divergences that declare themselves with an inline marker, so it cannot see
+one that declares nothing.
+
+### How a change reaches the main branch
+
+On a branch, by pull request. Nothing is pushed to the main branch directly.
+
+Seen working here: this repository's `CLAUDE.md` requires it, and `git log main
+--first-parent --no-merges` returns exactly one commit, the initial import.
+
+### What is not settled here
+
+The language a repository is written in, and the standard that language is held
+to. EEP 6 answers that for Python and defers every other language to the first
+repository that needs one.
+
+Anything about what a repository is for, what it contains, or how it is built.
+This document says a repository has checks; it does not say what they check.
+
+## EEP 8 - How Edison adopts an outside standard
+
+From [EEP 8](../eeps/eep-0008.md), accepted 18-Sep-2026.
+
+### What an adoption is
+
+An **adoption** is a decision that a text published outside Edison governs some
+part of how Edison works, whole and at one exact revision, read through a table
+of substitutions.
+
+An **adoption EEP** is an EEP that makes one. This document binds every
+adoption EEP, and binds nothing else.
+
+Adopting is not citing. An EEP may quote or cite an outside document without
+adopting it, and EEP 1 does exactly that with PEP 13. A citation carries no
+pin, states no substitutions, and binds nobody.
+
+### What an adoption EEP contains
+
+Inside `## Specification`, in this order, and each spelled as shown:
+
+| Heading | What it holds |
+|---|---|
+| `### The pin` | the pin sentence and the drift sentence |
+| `### Why this one` | the ranking comparison |
+| `### What it binds` | only when the adoption reaches past the series |
+| `### The rule of adoption` | the sentence below, verbatim |
+| `### Substitutions` | the table |
+| any further headings | the decisions adoption forced |
+
+`### What it binds` is required only of an adoption that reaches past the EEP
+series, as EEP 6's does. An adoption that governs only the series omits it.
+
+### The pin sentence
+
+One sentence, in this form, so that a tool can find it:
+
+```text
+at revision `<40 hexadecimal characters>` of `<path>` in
+`github.com/<owner>/<repository>`, committed <DD-MMM-YYYY>
+```
+
+The sentence may be introduced however reads best; EEP 1 writes "Edison follows
+PEP 1 as it stands at revision", EEP 5 writes "Edison adopts the Code of
+Conduct at revision". What is fixed is everything from `at revision` onward.
+
+The committed date is required. It is what tells a reader how old the adopted
+text is without fetching it.
+
+Where the adopted text does not live in a git repository, there is no pin in
+this form and the adoption cannot be written under this document. Say so, and
+bring the case to the council rather than inventing a second form.
+
+### The drift sentence
+
+Immediately after the pin:
+
+```text
+Later changes to <the adopted text> do not change Edison's <what it
+governs> until the pin is moved.
+```
+
+This is what a pin means, and all three adoptions that carry it say it in
+almost these words. It is written here so the fourth does not have to invent
+its own.
+
+### The rule of adoption
+
+Every adoption is read with this rule. An adoption EEP reproduces it verbatim
+rather than restating it:
+
+> The pinned text is read with the substitutions below. Nothing is added and
+> nothing is removed. Where a substitute does not exist, the clause is
+> **vacant**: it stays in the text, it is skipped for now, and it is filled as
+> soon as it can be.
+
+**Vacant** has that meaning throughout the series, and this is where it is
+defined. EEP 1 defines it inside its own rule of adoption, which is why every
+later adoption has had to point back at EEP 1 to borrow it.
+
+### Why this one
+
+EEP 2 ranks what may confirm a thing, and says that when two disagree, "the
+higher one that has spoken is followed". An adoption EEP must therefore show
+its work: name the candidates it weighed, say where each publisher sits on that
+ranking, and show that the ranking chose, not preference.
+
+EEP 5 and EEP 6 both do this already. EEP 6 puts it plainly: "The ranking is
+doing the work, not preference."
+
+Where two candidates sit at the same rank, the ranking does not choose and the
+council does. The resolution records which considerations decided it.
+
+Where nothing above rank 4 has spoken and no community practice has either, say
+so. An absence is a finding, and recording it is what stops the next agent
+inventing something to fill it.
+
+### Substitutions
+
+A table of two columns: what the pinned text says, and what it is read as.
+
+Every term the pinned text uses that has no Edison answer needs a row, and a
+row may read `vacant`. A term with no row is a term the reader has to guess at,
+which is what EEP 1's table was doing for seven terms before anything checked
+it.
+
+### Where the source and its own tool disagree
+
+The source governs and the tool has a defect.
+
+This is written twice in the series and settled nowhere. EEP 1: "Where this
+document and the pinned PEP 1 seem to differ on process, PEP 1 is right and
+this document has a defect." EEP 6, of Google's style guide against Google's
+own linter: "the guide is right and the tool has a defect, which is the rule
+EEP 1 already applies to itself against PEP 1."
+
+It follows that the disagreement is recorded rather than resolved silently, and
+that a tool configured to depart from its source names each departure where it
+occurs.
+
+### Licence, and when a working copy is allowed
+
+An adoption EEP records the licence of the text it adopts, because the licence
+decides whether Edison may carry a copy of it.
+
+A working copy is allowed only where something has to read the file locally.
+`tools/pylintrc` is the only one in the series today. Where a working copy
+exists, it names the revision it was taken from and every divergence from it,
+and something refuses a divergence that is not recorded.
+
+Everything else is adopted by reference and not reproduced. A restatement
+drifts from its original in silence; a pin shows drift plainly.
+
+### Moving a pin
+
+Moving a pin is a change to the adoption EEP, and the council decides it, which
+is the clause EEP 1 already applies to itself.
+
+The change history records the revision moved from, the revision moved to, and
+what changed in the adopted text that made the move worth making.
+
+### What is checked, and what is not
+
+`tools/check-eeps` rule `E017` refuses an EEP that has a `### The pin` heading
+but no pin sentence, no drift sentence or no substitution table.
+
+`tools/check-adoption` finds every pin sentence in the series and checks that
+each pinned file still resolves at its pinned revision. It needs a network and
+says so when it has none, as it already does.
+
+What is not checked: that a substitution table is complete. That is checked for
+EEP 1 only, because the terms of the pinned PEP 1 can be extracted
+mechanically. Completeness for any other adoption is an editor's job, and this
+document does not pretend otherwise.
