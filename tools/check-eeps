@@ -439,6 +439,18 @@ def check_eep(path, known_numbers):
         if not re.search(r"^### Substitutions\s*$", text, re.M):
             add("E017", 1, "has a pin but no Substitutions table")
 
+    # E018  EEP 4: "Every decision records why.  Accept, reject, defer
+    # or withdraw: each carries a reason in the resolution."  So an EEP
+    # the council has acted on carries a Resolution, whatever its type.
+    # EEP 3's header table marks Resolution "required for Standards
+    # Track only", which is the pinned PEP 1's rule; EEP 4 is the later
+    # and more specific, and EEP 10 puts this in the first gate.
+    if headers.get("Status") not in (None, "Draft"):
+        if not (headers.get("Resolution") or "").strip():
+            add("E018", where.get("Status", 1),
+                "status is %r but no Resolution records why"
+                % headers.get("Status"))
+
     # E015  PEP 1:595-596 makes the notice mandatory; the owner adopted
     # PEP 1's own wording rather than departing from it.
     body = "\n".join(text.split("\n")[body_start:])
@@ -718,6 +730,41 @@ def check_python_standard():
     return findings
 
 
+def check_numbering(eep_paths):
+    """A meta-EEP stays below 100.
+
+    EEP 3: "numbers below 100 are meta-PEPs", and "A process EEP about
+    the series itself is a meta-EEP and takes a number below 100."
+
+    EEP 3's other numbering rule, that an EEP takes "the next available
+    PEP number not used by a published or in-PR PEP", is NOT checked and
+    cannot be.  This was first written as a no-gap rule and it refused
+    the repository on a correct state: EEP 9 was in a pull request, so
+    this tree skipped 9 and the rule called that a fault.  A gap is the
+    normal condition while a proposal is under review, and a tree cannot
+    see a branch.  That half stays the editor's, and EEP 10 says so.
+    """
+    findings = []
+    numbers = []
+    for path in eep_paths:
+        m = re.match(r"^eep-(\d{4})\.md$", os.path.basename(path))
+        if m:
+            numbers.append((int(m.group(1)), path))
+    if not numbers:
+        return findings
+    for number, path in sorted(numbers):
+        with open(path, encoding="utf-8") as fh:
+            headers, _, _, err = split_front_matter(fh.read())
+        if err or not headers:
+            continue
+        if headers.get("Type") == "Process" and number >= 100:
+            findings.append(Finding(
+                "R008", path, 1,
+                "a Process EEP is a meta-EEP and takes a number below "
+                "100, not %d" % number))
+    return findings
+
+
 def check_no_artifacts():
     """Nothing a tool produced by running should be in the repository.
 
@@ -821,6 +868,7 @@ def main(argv):
         findings += check_markdown(p)
     if not targets:
         findings += check_codeowners(eep_paths)
+        findings += check_numbering(eep_paths)
         findings += check_repo_files()
         findings += check_python_standard()
         findings += check_standard()
