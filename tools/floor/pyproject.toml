@@ -1,0 +1,40 @@
+# EEP 7's floor, as a repo-review plugin.
+#
+# repo-review ships no checks of its own by design: "By itself, it does
+# nothing - it requires at least one plugin to be installed."  This is
+# that plugin, and it holds the part that is Edison's law rather than
+# anyone's open-source hygiene.
+#
+# Installed with: pip install -e tools/floor
+# Run with:       tools/check-floor [PATH]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edison-floor"
+version = "0.1.0"
+description = "EEP 7's floor, as checks a repository can be measured against"
+requires-python = ">=3.10"
+dependencies = ["repo-review[cli]>=1.2", "PyYAML>=6"]
+
+[tool.setuptools]
+py-modules = ["edison_floor"]
+
+[project.entry-points."repo_review.checks"]
+edison_floor = "edison_floor:repo_review_checks"
+
+# repo-review collects fixtures as one entry point per fixture, named by
+# the entry point, and collects checks as a factory returning a dict.
+# The two contracts differ; this half is the per-fixture one.
+[project.entry-points."repo_review.fixtures"]
+repo = "edison_floor:repo"
+tracked = "edison_floor:tracked"
+default_branch = "edison_floor:default_branch"
+workflows = "edison_floor:workflows"
+workflow_commands = "edison_floor:workflow_commands"
+workflow_triggers = "edison_floor:workflow_triggers"
+
+[project.entry-points."repo_review.families"]
+edison_floor = "edison_floor:repo_review_families"

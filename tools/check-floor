@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Decide a repository against the floor EEP 7 states.
+
+EEP 7 binds every repository Edison owns and nothing measured any
+repository against it.  The rules live in tools/floor, as a plugin to
+repo-review, which supplies the running, the reporting, the per-rule
+citation and the skipped state.  This says which rules were not decided
+and why, which repo-review has nowhere to record.
+
+EEP 7: "Where a check cannot decide, because something it needs is
+absent, it says which and does not claim to have decided."  EEP 7 also
+settles what that looks like, naming tools/check-python and
+tools/check-adoption, which "both print their reason and exit zero,
+which is the behaviour this section asks for".  So an undecided rule is
+spoken and is not a failure.
+
+Usage:
+    tools/check-floor [PATH]
+
+PATH defaults to the repository this file is in.
+
+Exits 0 when every rule that ran passed or repo-review is not installed,
+1 when a rule failed, 2 when it could not run at all. Exiting zero
+without repo-review is tools/check-python's behaviour, which EEP 7 names
+as the one this section asks for, and it carries the same caveat EEP 6
+records: a green local run proves nothing when the tool that decides is
+absent. The host installs it, so the host decides.
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLUGIN = os.path.join(REPO, "tools", "floor")
+
+
+def installed():
+    """Return whether repo-review can be run at all."""
+    try:
+        subprocess.run([sys.executable, "-m", "repo_review", "--version"],
+                       capture_output=True, check=True)
+    except (subprocess.CalledProcessError, OSError):
+        return False
+    return True
+
+
+def run_review(target):
+    """Return repo-review's findings for target, or a reason it could not."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "repo_review", target,
+             "--format", "json"],
+            capture_output=True, text=True, check=False)
+    except OSError as err:
+        return None, "repo-review could not be run: %s" % err
+    if proc.returncode not in (0, 3):
+        detail = (proc.stderr or proc.stdout).strip().split("\n")
+        return None, ("repo-review exited %d: %s"
+                      % (proc.returncode, detail[-1] if detail else ""))
+    try:
+        return json.loads(proc.stdout), None
+    except ValueError:
+        return None, "repo-review produced no JSON to read"
+
+
+def main(argv):
+    """Check one repository and report. See the module docstring."""
+    target = os.path.abspath(argv[1]) if len(argv) > 1 else REPO
+    if not os.path.isdir(target):
+        print("not a directory: %s" % target)
+        return 2
+
+    if not installed():
+        print("repo-review is not installed, so no floor rule ran and "
+              "nothing was decided. Install it with: "
+              "pip install -e tools/floor")
+        return 0
+
+    sys.path.insert(0, PLUGIN)
+    try:
+        import edison_floor                   # pylint: disable=C0415
+    except ImportError:
+        print("tools/floor is not importable, so no rule ran. It holds "
+              "the rules; repo-review only runs them")
+        return 2
+
+    findings, why = run_review(target)
+    if findings is None:
+        print("%s, so nothing was checked. Install it with: "
+              "pip install -e tools/floor" % why)
+        return 2
+
+    checks = {k: v for k, v in (findings.get("checks") or {}).items()
+              if k.startswith("F")}
+    if not checks:
+        print("repo-review ran but contributed no floor rule. Install "
+              "the plugin with: pip install -e tools/floor")
+        return 2
+
+    failed = []
+    skipped = []
+    for name in sorted(checks):
+        result = checks[name]
+        if result.get("result") is None:
+            skipped.append(name)
+        elif not result.get("result"):
+            failed.append((name, result))
+
+    for name, result in failed:
+        print("%s  %s" % (name, result.get("description", "").strip()))
+        print("      %s" % result.get("url", ""))
+
+    ran = len(checks) - len(skipped)
+    if failed:
+        print("\n%d of %d rule(s) that ran found a fault in %s."
+              % (len(failed), ran, os.path.relpath(target, os.getcwd())))
+    else:
+        print("%d rule(s) ran, no findings." % ran)
+
+    for name in skipped:
+        reason = edison_floor.reasons(target).get(name, "the facts it "
+                                                  "needs were absent")
+        print("%s was not checked: %s" % (name, reason))
+
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

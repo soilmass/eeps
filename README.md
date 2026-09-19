@@ -23,6 +23,7 @@ it, fill it in, and check your work:
 tools/check-eeps
 tools/check-python
 tools/check-adoption
+tools/check-floor
 ```
 
 The first enforces what PEP 1 requires of a proposal and what the reference
@@ -32,13 +33,21 @@ installed. The third checks the series' adoptions, as [EEP 8](eeps/eep-0008.md)
 defines them: that EEP 1's substitution table still covers the PEP 1 revision it
 pins, that every pinned file still resolves at its revision, and that a working
 copy has not diverged from its upstream without saying so. It needs a network
-and says so without one.
+and says so without one. The fourth decides this repository against the floor
+[EEP 7](eeps/eep-0007.md) binds every repository to, and takes a path, so it
+decides any other repository the same way. It needs `tools/floor` installed:
+
+```sh
+pip install -e tools/floor
+```
 
 Every rule in every check names the source it comes from, and a check that
 cannot decide says which rule it could not run rather than reporting no
 findings. `tests/run-fixtures` proves each of the 26 file-level rules can fail;
 the seven repository-level rules and the three adoption rules have no fixture
-and were provoked by hand.
+and were provoked by hand. `tests/run-floor-fixtures` builds a repository for
+each floor rule to fail on, and proves that a rule with no facts says nothing
+rather than passing.
 
 ## The standard
 
@@ -56,8 +65,13 @@ way to it. Read the standard when you want to know what to do.
 - `tools/` holds the checks, and `tools/pylintrc` the configuration EEP 6
   adopts. `pylint` run on its own will not find that file, so run
   `tools/check-python`, or pass `--rcfile=tools/pylintrc` yourself.
-- `tests/` holds one fixture per file-level rule and the runner that proves
-  each of those can fail.
+- `tools/floor/` holds EEP 7's floor as rules, and is the only part of the
+  checks that has to be installed. It is a plugin to `repo-review`, which
+  supplies the running and the reporting.
+- `tests/` holds one fixture per file-level rule and the runners that prove
+  each rule can fail.
+- [DEPENDENCIES.md](DEPENDENCIES.md) records what this repository relies on
+  that it did not write, and why.
 
 ## The series
 

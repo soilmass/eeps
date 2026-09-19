@@ -7,3 +7,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+
+# Installing tools/floor leaves this behind. It is metadata setuptools
+# regenerates on every install, so it is a by-product and not the point.
+*.egg-info/
