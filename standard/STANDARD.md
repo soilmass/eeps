@@ -930,15 +930,17 @@ source does not belong in it.
 Where a check cannot decide, because something it needs is absent, it says which
 and does not claim to have decided.
 
-**This repository does not fully meet the last two.** `tools/check-eeps` opens
+**This repository does not fully meet the second.** `tools/check-eeps` opens
 by naming the only three sources a rule may come from and stating that a rule
-with no source does not belong in the file. Twenty-nine of its thirty-two rules
-carry that comment and `R001` carries `PEP 1:793-794` in the docstring of
-its function, but `R006` and `R007` give rationale and name no source. Two of
-its degradations are silent rather than spoken: without PyYAML it drops rule
-`E003` and still prints "no findings", and `check_no_artifacts` returns nothing
-when `git ls-files` fails. `tools/check-python` and `tools/check-adoption` both
-print their reason and exit zero, which is the behaviour this section asks for.
+with no source does not belong in the file. Thirty of its thirty-three rules
+carry that comment and `R001` carries `PEP 1:793-794` in the docstring of its
+function, but `R006` and `R007` give rationale and name no source.
+
+Every degradation now speaks. `tools/check-python` and `tools/check-adoption`
+print their reason and exit zero, and `tools/check-eeps` does the same for the
+two that were silent: `E003` when PyYAML is absent, and `R007` when
+`git ls-files` cannot be run. A run in which a rule did not decide says so
+instead of reporting "no findings".
 
 The host half has never happened here. The workflow is wired and triggers on
 every push and pull request; no job has ever started, because GitHub refuses
@@ -953,7 +955,7 @@ file can provoke it, and otherwise a record, in the change that introduced or
 repaired the rule, of how it was provoked by hand.
 
 Seen working here: `tests/fixtures/` holds one directory per file-level rule,
-twenty-five of them, each the known-good file with exactly one thing wrong.
+twenty-six of them, each the known-good file with exactly one thing wrong.
 `tests/run-fixtures` reads the rule identifiers out of the checker itself, so a
 file-level rule with no fixture is a failure in its own right. The seven
 repository-level rules cannot be provoked by one file and the runner exempts
@@ -980,9 +982,12 @@ pin, EEP 5's of Google's code of conduct, was accepted on 18-Sep-2026 and is a
 pin with no copy: the pointer file states the revision and does not reproduce
 the text.
 
-The refusal on the working copy is weaker than this section asks. `R004` reads
-only divergences that declare themselves with an inline marker, so it cannot see
-one that declares nothing.
+Both halves of that refusal are in place. `tools/check-eeps` rule `R004` reads
+every declared divergence, whether it marks itself on its own line or on the
+line above it, and refuses one that no EEP records. `tools/check-adoption` rule
+`A003` diffs the working copy against the pinned upstream text and refuses a
+line that differs and declares nothing at all, which is the case no marker can
+catch.
 
 ### How a change reaches the main branch
 
@@ -1146,9 +1151,11 @@ what changed in the adopted text that made the move worth making.
 `tools/check-eeps` rule `E017` refuses an EEP that has a `### The pin` heading
 but no pin sentence, no drift sentence or no substitution table.
 
-`tools/check-adoption` finds every pin sentence in the series and checks that
-each pinned file still resolves at its pinned revision. It needs a network and
-says so when it has none, as it already does.
+`tools/check-adoption` rule `A002` finds every pin sentence in the series and
+checks that each pinned file still resolves at its pinned revision. Rule `A003`
+finds every declared working copy and diffs it against the pinned upstream
+text, refusing a line that differs and declares nothing. Both need a network
+and say so when they have none.
 
 What is not checked: that a substitution table is complete. That is checked for
 EEP 1 only, because the terms of the pinned PEP 1 can be extracted

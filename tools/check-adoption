@@ -33,6 +33,7 @@ Exits 0 when everything checked passes or nothing could be fetched,
 repository is not readable.
 """
 
+import difflib
 import http.client
 import os
 import re
@@ -53,6 +54,17 @@ RAW_ANY = "https://raw.githubusercontent.com/%s/%s/%s/%s"
 PIN_SENTENCE = re.compile(
     r"at revision `([0-9a-f]{40})` of `([^`]+)` in "
     r"`github\.com/([\w.-]+)/([\w.-]+)`")
+
+# EEP 8 allows a working copy only where a tool has to read the file
+# locally, and requires it to name the revision it came from and every
+# divergence from it.  R004 in tools/check-eeps reads only divergences
+# that declare themselves, so it cannot see one that declares nothing.
+# This finds the upstream text and diffs against it.
+WORKING_COPY = re.compile(
+    r"working copy of `([^`]+)` at revision `([0-9a-f]{40})` in "
+    r"`github\.com/([\w.-]+)/([\w.-]+)`")
+
+MARKER = "# Edison:"
 
 # Named things PEP 1 refers to that a substitution has to answer for.
 # Cross-references to other PEPs are found in the text itself.
@@ -157,23 +169,32 @@ def adoptions():
     return found
 
 
-def resolves(owner, repo, revision, path):
-    """Whether the pinned file can still be read at that revision.
+def fetch_file(owner, repo, revision, path):
+    """The pinned file's text, False when it is not there, None when
+    the network could not be reached at all.
 
-    None when the network could not be reached at all, so that a machine
-    without one is not told its pins are broken.
+    The three outcomes are kept apart on purpose: a machine with no
+    network must not be told its pins are broken.
     """
     url = RAW_ANY % (owner, repo, revision, path)
     for _ in range(3):
         try:
             with urllib.request.urlopen(url, timeout=30) as response:
-                return response.status == 200 and bool(response.read(1))
+                return response.read().decode("utf-8")
         except urllib.error.HTTPError:
             return False
         except (urllib.error.URLError, http.client.HTTPException,
-                OSError, ValueError):
+                OSError, ValueError, UnicodeDecodeError):
             continue
     return None
+
+
+def resolves(owner, repo, revision, path):
+    """Whether the pinned file can still be read at that revision."""
+    text = fetch_file(owner, repo, revision, path)
+    if text is None:
+        return None
+    return text is not False
 
 
 def check_pins():
@@ -202,6 +223,87 @@ def check_pins():
     return 0
 
 
+def working_copies():
+    """Every declared working copy, as (path, upstream, rev, owner, repo)."""
+    found = []
+    for root, dirs, files in os.walk(REPO):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for name in sorted(files):
+            full = os.path.join(root, name)
+            try:
+                with open(full, encoding="utf-8") as handle:
+                    text = handle.read(20000)
+            except (OSError, UnicodeDecodeError):
+                continue
+            # The declaration is prose, and in a config file it is
+            # prose inside comments, so the comment markers and the
+            # line wrapping are both removed before matching.
+            flat = re.sub(r"\s+", " ", text.replace("#", " "))
+            match = WORKING_COPY.search(flat)
+            if match:
+                upstream, revision, owner, repo = match.groups()
+                found.append((full, upstream, revision, owner, repo))
+    return found
+
+
+def unrecorded(local, upstream):
+    """Lines of the working copy that differ and carry no marker.
+
+    The Edison header is an insertion before the upstream text begins,
+    so it is allowed without a marker; everything else that differs has
+    to declare itself where it occurs or on the line before.
+    """
+    matcher = difflib.SequenceMatcher(None, upstream, local, autojunk=False)
+    bad = []
+    for tag, _, _, start, end in matcher.get_opcodes():
+        if tag not in ("insert", "replace"):
+            continue
+        if tag == "insert" and start == 0:
+            continue                       # the header block
+        for n in range(start, end):
+            line = local[n]
+            before = local[n - 1] if n else ""
+            if MARKER in line or MARKER in before:
+                continue
+            if not line.strip():
+                continue
+            bad.append((n + 1, line.rstrip()))
+    return bad
+
+
+def check_working_copies():
+    """A003.  A working copy may not diverge without saying so."""
+    copies = working_copies()
+    if not copies:
+        return 0
+    failed, unreachable = [], 0
+    for path, upstream, revision, owner, repo in copies:
+        text = fetch_file(owner, repo, revision, upstream)
+        if text is None:
+            unreachable += 1
+            continue
+        if text is False:
+            failed.append((path, 0, "the pinned upstream text is not there"))
+            continue
+        with open(path, encoding="utf-8") as handle:
+            local = handle.read().split("\n")
+        for line_no, line in unrecorded(local, text.split("\n")):
+            failed.append((path, line_no, line))
+    for path, line_no, line in failed:
+        print("A003  %s:%d  %s diverges from the pinned text and no "
+              "marker records it" % (os.path.relpath(path, REPO), line_no,
+                                     line.strip()[:48]))
+    if failed:
+        return 1
+    if unreachable:
+        print("%d working cop(ies) could not be reached, so they were not "
+              "checked." % unreachable)
+        return 0
+    print("%d working cop(ies) checked, no unrecorded divergence."
+          % len(copies))
+    return 0
+
+
 def main():
     if not os.path.exists(EEP1):
         print("eeps/eep-0001.md is missing")
@@ -220,7 +322,7 @@ def main():
         print("checked. EEP 1 pins %s." % revision)
         print("This check needs a network and keeps no copy, because EEP 1")
         print("chose a pin over a copy.")
-        return check_pins()
+        return check_pins() or check_working_copies()
 
     rows_text = table(eep1)
     if not rows_text:
@@ -243,10 +345,11 @@ def main():
         print("\n%d term(s) uncovered, %d row(s) in the table."
               % (len(missing), rows))
         check_pins()
+        check_working_copies()
         return 1
     print("%d term(s) checked against %d row(s), none uncovered."
           % (len(terms(pep1)), rows))
-    return check_pins()
+    return check_pins() or check_working_copies()
 
 
 if __name__ == "__main__":
