@@ -17,6 +17,7 @@ These EEPs are written but the council has not accepted them, so nothing in
 them binds and nothing from them appears below.
 
 - [EEP 9 - How Edison decides what to depend on](../eeps/eep-0009.md), Draft
+- [EEP 10 - How Edison judges a change](../eeps/eep-0010.md), Draft
 
 ## EEP 1 - EEP Purpose and Guidelines
 
