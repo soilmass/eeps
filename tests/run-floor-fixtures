@@ -152,6 +152,28 @@ def break_f007(path):
         handle.write("Run `tools/check-thing` to check the repository.\n")
 
 
+def external_commands(path):
+    """Run the checks through a tool rather than a file in the repo.
+
+    F004 failed a real repository for this, whose workflow runs `uv run
+    pytest`.  EEP 7 asks for a command, not a script, so this must pass.
+    """
+    with open(os.path.join(path, ".github", "workflows", "checks.yml"),
+              "w", encoding="utf-8") as handle:
+        handle.write(WORKFLOW.replace("tools/check-thing",
+                                      "uv run pytest"))
+
+
+def rename_to_master(path):
+    """Call the principal branch master.
+
+    F006 read the name main literally and skipped a real repository for
+    this, reporting that it could not find a branch it had not looked
+    for.  The rule must decide here, not decline.
+    """
+    git(path, "branch", "-m", "main", "master")
+
+
 def strip_git(path):
     """Leave a directory that is not a repository."""
     shutil.rmtree(os.path.join(path, ".git"))
@@ -177,6 +199,14 @@ SKIPS = [
     (("F003", "F006"), strip_git),
     (("F004", "F005"), strip_workflows),
     (("F007",), strip_agent_file),
+]
+
+# A rule that once turned on a repository doing nothing wrong. Each was
+# found by pointing tools/check-floor at a real repository that is not
+# this one, and each is kept so the rule cannot narrow back.
+REGRESSIONS = [
+    ("F004", external_commands),
+    ("F006", rename_to_master),
 ]
 
 
@@ -244,8 +274,23 @@ def main():
                       % (rule, results.get(rule)))
                 bad.append(rule)
 
-    print("\n%d rule(s) seen failing, %d skip(s) seen."
-          % (len(FAILURES), sum(len(r) for r, _ in SKIPS)))
+    for rule, mutate in REGRESSIONS:
+        results = case(mutate)
+        if results is None:
+            print("fail %-6s could not be read" % rule)
+            bad.append(rule)
+            continue
+        if results.get(rule) is True:
+            print("ok   %-6s still passes a repository doing no wrong"
+                  % rule)
+        else:
+            print("fail %-6s turned on a repository doing no wrong (%r)"
+                  % (rule, results.get(rule)))
+            bad.append(rule)
+
+    print("\n%d rule(s) seen failing, %d skip(s) seen, %d regression(s) "
+          "held." % (len(FAILURES), sum(len(r) for r, _ in SKIPS),
+                     len(REGRESSIONS)))
     return 1 if bad else 0
 
 

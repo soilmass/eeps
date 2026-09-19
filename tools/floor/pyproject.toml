@@ -31,6 +31,7 @@ edison_floor = "edison_floor:repo_review_checks"
 [project.entry-points."repo_review.fixtures"]
 repo = "edison_floor:repo"
 tracked = "edison_floor:tracked"
+default_branch = "edison_floor:default_branch"
 workflows = "edison_floor:workflows"
 workflow_commands = "edison_floor:workflow_commands"
 workflow_triggers = "edison_floor:workflow_triggers"

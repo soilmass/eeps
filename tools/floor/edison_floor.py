@@ -86,6 +86,35 @@ def tracked(repo):
     return [x for x in proc.stdout.split("\n") if x.strip()]
 
 
+def default_branch(repo):
+    """The repository's principal branch, or None when there is none.
+
+    EEP 7 says "the main branch", meaning the one a change has to reach,
+    not a branch that must be named main.  This rule read the name
+    literally at first and skipped a real repository whose branch is
+    master, reporting that it could not find a main branch when there
+    was a default branch in front of it.
+    """
+    # pylint: disable=redefined-outer-name
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), "symbolic-ref", "--short",
+             "refs/remotes/origin/HEAD"],
+            capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+    name = proc.stdout.strip()
+    if proc.returncode == 0 and name:
+        return name.split("/", 1)[-1]
+    for candidate in ("main", "master"):
+        shown = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", candidate],
+            capture_output=True, text=True, check=False)
+        if shown.returncode == 0:
+            return candidate
+    return None
+
+
 def workflows(repo):
     """Every parsed workflow, or None when none can be read."""
     # pylint: disable=redefined-outer-name
@@ -202,25 +231,33 @@ class F003(Floor):
 
 
 class F004(Floor):
-    """EEP 7, "The checks": the commands the host runs exist here."""
+    """EEP 7, "The checks": a command exists, and it can be run."""
 
     url = EEP7
 
     @staticmethod
     def check(repo, workflow_commands):
-        """EEP 7: a command that decides the repository, run locally."""
+        """EEP 7: a command that decides the repository, run locally.
+
+        A command need not be a file in the repository.  This rule was
+        written believing it must, because that is how this repository
+        happens to work, and it then failed a real repository whose
+        checks run as `uv run pytest`.  EEP 7 requires a command, not a
+        script, so what is decided here is narrower and true: that the
+        host runs something, and that anything it runs which is a file
+        here can actually be run.  Whether a command decides the
+        repository or merely installs its dependencies cannot be told
+        apart from outside, and is not guessed at.
+        """
         # pylint: disable=redefined-outer-name
-        if workflow_commands is None:
+        if not workflow_commands:
             return None
-        found = False
         for command in workflow_commands:
             first = command.split()[0] if command.split() else ""
             candidate = repo / first
-            if candidate.is_file():
-                found = True
-                if not os.access(candidate, os.X_OK):
-                    return False
-        return found
+            if candidate.is_file() and not os.access(candidate, os.X_OK):
+                return False
+        return True
 
 
 class F005(Floor):
@@ -243,19 +280,21 @@ class F006(Floor):
     url = EEP7
 
     @staticmethod
-    def check(repo):
+    def check(repo, default_branch):
         """EEP 7: "Nothing is pushed to the main branch directly".
 
         EEP 7 gives the evidence itself: `git log main --first-parent
         --no-merges` returns only the initial import.  That command is
         run here rather than restated, so the rule and the law cannot
-        drift apart.
+        drift apart, with the branch resolved rather than assumed.
         """
         # pylint: disable=redefined-outer-name
+        if default_branch is None:
+            return None
         try:
             proc = subprocess.run(
-                ["git", "-C", str(repo), "log", "main", "--first-parent",
-                 "--no-merges", "--format=%H"],
+                ["git", "-C", str(repo), "log", default_branch,
+                 "--first-parent", "--no-merges", "--format=%H"],
                 capture_output=True, text=True, check=False)
         except OSError:
             return None
@@ -309,19 +348,19 @@ def reasons(path):
     if tracked(root) is None:
         out["F003"] = ("git ls-files failed, so the tracked file list "
                        "could not be read")
-    if workflows(root) is None:
+    found = workflows(root)
+    if found is None:
         why = ("PyYAML is not installed, so no workflow could be parsed"
                if yaml is None else
                "no workflow in .github/workflows could be read")
         out["F004"] = why
         out["F005"] = why
-    proc = subprocess.run(
-        ["git", "-C", str(root), "log", "main", "--first-parent",
-         "--no-merges", "--format=%H"],
-        capture_output=True, text=True, check=False)
-    if proc.returncode != 0:
-        out["F006"] = ("git could not read a main branch here, so its "
-                       "history was not examined")
+    elif not workflow_commands(found):
+        out["F004"] = ("no workflow runs a command, so there was none "
+                       "to look for here")
+    if default_branch(root) is None:
+        out["F006"] = ("git found no default branch here, so no history "
+                       "was examined")
     if not any((root / n).is_file() for n in AGENT_FILES):
         out["F007"] = ("the repository has no file that tells an agent "
                        "how to work in it")
