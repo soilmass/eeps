@@ -222,9 +222,8 @@ PEP 1 needs no delimiter because a `.rst` PEP's headers are parsed by a build
 system that expects them. A Markdown file has no such convention: a bare
 `Title: x` at the top of a `.md` file is an ordinary paragraph.
 
-Edison therefore adopts YAML front matter, as Jekyll defines it, at revision
-`8c3934fd0271dc709b3d3b91f8b78e12274eeae6` of `docs/_docs/front-matter.md` in
-`github.com/jekyll/jekyll`. Jekyll's definition: the block must be the first
+Edison therefore adopts YAML front matter, as Jekyll defines it. Jekyll's
+definition is the one sentence the series needs: the block must be the first
 thing in the file and must take the form of valid YAML set between triple-dashed
 lines. Jekyll is also what GitHub Pages runs, so the same pin serves the series
 when it is published.
@@ -241,6 +240,49 @@ it is not.
 An unfilled required header is left with an empty value. It is not written
 `vacant`: EEP 1 gives that word a specific meaning, a step whose substitute does
 not exist, and an unopened discussion thread is not that.
+
+### The pin
+
+Edison adopts Jekyll's front-matter format as it stands at revision
+`8c3934fd0271dc709b3d3b91f8b78e12274eeae6` of `docs/_docs/front-matter.md` in
+`github.com/jekyll/jekyll`, committed 05-Apr-2020. Later changes to that file do
+not change Edison's front matter until the pin is moved.
+
+Prose style is a second adoption and is settled below, under "Where Google
+governs and where PEP 1 governs". Google's Markdown style guide is adopted as it
+stands at revision `3b8822983dc779c498961cc86332a28c07590f64` of
+`docguide/style.md` in `github.com/google/styleguide`, committed 11-Sep-2026.
+Later changes to that guide do not change Edison's prose until the pin is moved.
+That is the revision EEP 6 already pins for the Python style guide, so the
+series names one revision of `google/styleguide` and not two.
+
+### The rule of adoption
+
+The pinned text is read with the substitutions below. Nothing is added and
+nothing is removed. Where a substitute does not exist, the clause is **vacant**:
+it stays in the text, it is skipped for now, and it is filled as soon as it can
+be.
+
+### Substitutions
+
+The pinned Jekyll page is documentation for building a site, and almost all of
+it is about that. Edison adopts the shape of the block and nothing that depends
+on a site being built.
+
+| The pinned text says | Read as |
+|---|---|
+| a file with a front matter block "will be processed by Jekyll as a special file" | the block is read by `tools/check-eeps`, which is the only thing that parses it. No site is built |
+| the block "must be the first thing in the file and must take the form of valid YAML set between triple-dashed lines" | as it says. This sentence is the whole of what Edison adopts |
+| YAML, as `yaml.org` defines it | vacant. No revision of the YAML specification is pinned anywhere in the series, and `tools/check-eeps` parses the block with whatever PyYAML it finds. See the open issue |
+| the predefined global variables `layout`, `permalink` and `published` | vacant. The header table above is the only set of keys an EEP carries |
+| the post variables `date`, `category`, `categories` and `tags` | vacant. An EEP is not a post. `Created` and `Post-History` carry PEP 1's date format, not Jekyll's `YYYY-MM-DD` |
+| custom variables, and reading one back through Liquid as `page.food` | vacant. Nothing renders the series |
+| layouts, includes, collections, and folders of posts | vacant |
+| the warning that a UTF-8 byte order mark breaks Jekyll | as it says. A byte order mark would also break the opening fence `tools/check-eeps` looks for |
+
+Google's Markdown style guide needs no substitutions. It is written for Markdown
+files in a repository, which is what the series is, and `tools/check-eeps` rules
+`M001` to `M009` apply it directly.
 
 ### The title
 

@@ -35,6 +35,11 @@
           "path": "docs/_docs/front-matter.md",
           "repository": "jekyll/jekyll",
           "revision": "8c3934fd0271dc709b3d3b91f8b78e12274eeae6"
+        },
+        {
+          "path": "docguide/style.md",
+          "repository": "google/styleguide",
+          "revision": "3b8822983dc779c498961cc86332a28c07590f64"
         }
       ],
       "eep": 3,
