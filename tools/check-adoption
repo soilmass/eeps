@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Check that EEP 1's substitution table still covers the pinned PEP 1.
+"""Check the series' adoptions against the texts they pin.
+
+Two checks. A001 is the older and narrower: EEP 1's substitution table
+must still cover the pinned PEP 1. A002 is EEP 8's, and covers every
+adoption in the series: each pinned file must still resolve at the
+revision the EEP names.
 
 EEP 1's rule of adoption says "PEP 1 is read with the substitutions
 below", which claims the table is complete. Nothing checked that claim,
@@ -23,8 +28,9 @@ anything.
 Usage:
     tools/check-adoption
 
-Exits 0 when every term is covered or the text could not be fetched,
-1 when a term has no row, 2 when the repository is not readable.
+Exits 0 when everything checked passes or nothing could be fetched,
+1 when a term has no row or a pin does not resolve, 2 when the
+repository is not readable.
 """
 
 import http.client
@@ -36,7 +42,17 @@ import urllib.request
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EEP1 = os.path.join(REPO, "eeps", "eep-0001.md")
+EEPS = os.path.join(REPO, "eeps")
 RAW = "https://raw.githubusercontent.com/python/peps/%s/peps/pep-0001.rst"
+RAW_ANY = "https://raw.githubusercontent.com/%s/%s/%s/%s"
+
+# EEP 8 fixes the form of the sentence that announces a pin, so that
+# every adoption in the series can be found without this tool knowing
+# which EEPs make one.  Before EEP 8 this tool knew about EEP 1 alone,
+# and EEP 5's and EEP 6's tables were checked by nothing.
+PIN_SENTENCE = re.compile(
+    r"at revision `([0-9a-f]{40})` of `([^`]+)` in "
+    r"`github\.com/([\w.-]+)/([\w.-]+)`")
 
 # Named things PEP 1 refers to that a substitution has to answer for.
 # Cross-references to other PEPs are found in the text itself.
@@ -121,6 +137,71 @@ def covered_by_rule(eep1):
     return {"PEP " + n.strip() for n in row.group(1).split(",")}
 
 
+def adoptions():
+    """Every pin in the series, as (eep, revision, path, owner, repo).
+
+    Whitespace is collapsed first so that a pin which wraps across lines
+    reads the same as one that does not.
+    """
+    found = []
+    if not os.path.isdir(EEPS):
+        return found
+    for name in sorted(os.listdir(EEPS)):
+        if not re.match(r"^eep-\d{4}\.md$", name):
+            continue
+        with open(os.path.join(EEPS, name), encoding="utf-8") as handle:
+            flat = re.sub(r"\s+", " ", handle.read())
+        for match in PIN_SENTENCE.finditer(flat):
+            revision, path, owner, repo = match.groups()
+            found.append((name, revision, path, owner, repo))
+    return found
+
+
+def resolves(owner, repo, revision, path):
+    """Whether the pinned file can still be read at that revision.
+
+    None when the network could not be reached at all, so that a machine
+    without one is not told its pins are broken.
+    """
+    url = RAW_ANY % (owner, repo, revision, path)
+    for _ in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                return response.status == 200 and bool(response.read(1))
+        except urllib.error.HTTPError:
+            return False
+        except (urllib.error.URLError, http.client.HTTPException,
+                OSError, ValueError):
+            continue
+    return None
+
+
+def check_pins():
+    """A002.  Report every pin that no longer resolves."""
+    pins = adoptions()
+    if not pins:
+        print("No adoption in the series names a pinned revision.")
+        return 0
+    broken, unreachable = [], 0
+    for name, revision, path, owner, repo in pins:
+        state = resolves(owner, repo, revision, path)
+        if state is None:
+            unreachable += 1
+        elif not state:
+            broken.append((name, revision, path, owner, repo))
+    for name, revision, path, owner, repo in broken:
+        print("A002  eeps/%s  %s does not resolve in %s/%s at %s"
+              % (name, path, owner, repo, revision))
+    if broken:
+        return 1
+    if unreachable:
+        print("%d of %d pin(s) could not be reached, so they were not "
+              "checked." % (unreachable, len(pins)))
+        return 0
+    print("%d pin(s) checked, all resolve." % len(pins))
+    return 0
+
+
 def main():
     if not os.path.exists(EEP1):
         print("eeps/eep-0001.md is missing")
@@ -139,7 +220,7 @@ def main():
         print("checked. EEP 1 pins %s." % revision)
         print("This check needs a network and keeps no copy, because EEP 1")
         print("chose a pin over a copy.")
-        return 0
+        return check_pins()
 
     rows_text = table(eep1)
     if not rows_text:
@@ -161,10 +242,11 @@ def main():
                   "pinned PEP 1 and has no row" % (name, count))
         print("\n%d term(s) uncovered, %d row(s) in the table."
               % (len(missing), rows))
+        check_pins()
         return 1
     print("%d term(s) checked against %d row(s), none uncovered."
           % (len(terms(pep1)), rows))
-    return 0
+    return check_pins()
 
 
 if __name__ == "__main__":
