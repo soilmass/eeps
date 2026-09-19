@@ -42,7 +42,10 @@ TARGETS = [
     os.path.join(REPO, "tools", "check-python"),
     os.path.join(REPO, "tools", "check-adoption"),
     os.path.join(REPO, "tools", "build-standard"),
+    os.path.join(REPO, "tools", "check-floor"),
+    os.path.join(REPO, "tools", "floor", "edison_floor.py"),
     os.path.join(REPO, "tests", "run-fixtures"),
+    os.path.join(REPO, "tests", "run-floor-fixtures"),
 ]
 
 

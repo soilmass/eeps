@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Provoke every rule in tools/floor, and prove each can fail.
+
+EEP 7: "A rule that has never been seen failing has never been tested.
+Every rule has something that provokes it, and the provocation is kept."
+
+tests/fixtures/ keeps one directory per file-level rule of
+tools/check-eeps, because one file can provoke those.  A floor rule is
+about a whole repository, and two of them read a git history, so a
+fixture cannot be a committed directory: a repository cannot hold
+another repository's .git.  The provocation is therefore built here.
+
+Each case starts from a repository that passes every rule, breaks
+exactly one thing, and asserts that exactly the expected rule turns.
+The skip cases assert the opposite of a failure: that a rule with no
+facts says nothing rather than passing.
+
+Usage:
+    tests/run-floor-fixtures
+
+Exits 0 when every rule was seen to fail or repo-review is not
+installed, 1 when a rule could not be provoked, 2 when the harness could
+not run at all. Exiting zero without repo-review follows
+tools/check-python, which EEP 7 names as the behaviour it asks for, and
+carries the same caveat: a green local run proves nothing here. The host
+installs it, so the host is where the rules are actually provoked.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+WORKFLOW = """name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: tools/check-thing
+"""
+
+WORKFLOW_PUSH_ONLY = WORKFLOW.replace("  pull_request:\n", "")
+
+
+def git(path, *args):
+    """Run one git command in path and return whether it succeeded."""
+    proc = subprocess.run(["git", "-C", path] + list(args),
+                          capture_output=True, text=True, check=False)
+    return proc.returncode == 0
+
+
+def good(path):
+    """Build a repository that passes every floor rule."""
+    os.makedirs(os.path.join(path, "tools"))
+    os.makedirs(os.path.join(path, ".github", "workflows"))
+    with open(os.path.join(path, "README.md"), "w",
+              encoding="utf-8") as handle:
+        handle.write("# thing\n\nThe entry point.\n")
+    with open(os.path.join(path, "LICENSE"), "w",
+              encoding="utf-8") as handle:
+        handle.write("CC0-1.0-Universal\n")
+    with open(os.path.join(path, "CLAUDE.md"), "w",
+              encoding="utf-8") as handle:
+        handle.write("Read the `README.md` at the root.\n")
+    command = os.path.join(path, "tools", "check-thing")
+    with open(command, "w", encoding="utf-8") as handle:
+        handle.write("#!/bin/sh\nexit 0\n")
+    os.chmod(command, 0o755)
+    with open(os.path.join(path, ".github", "workflows", "checks.yml"),
+              "w", encoding="utf-8") as handle:
+        handle.write(WORKFLOW)
+    if not git(path, "init", "-q", "-b", "main"):
+        return False
+    git(path, "config", "user.email", "test@example.invalid")
+    git(path, "config", "user.name", "test")
+    git(path, "add", "-A")
+    return git(path, "commit", "-q", "-m", "initial import")
+
+
+def review(path):
+    """Return every floor rule's result for path, or None."""
+    proc = subprocess.run(
+        [sys.executable, "-m", "repo_review", path, "--format", "json"],
+        capture_output=True, text=True, check=False)
+    if proc.returncode not in (0, 3):
+        return None
+    try:
+        found = json.loads(proc.stdout)
+    except ValueError:
+        return None
+    return {k: v.get("result")
+            for k, v in (found.get("checks") or {}).items()
+            if k.startswith("F")}
+
+
+def break_f001(path):
+    """Remove the entry point."""
+    os.remove(os.path.join(path, "README.md"))
+
+
+def break_f002(path):
+    """Remove the licence."""
+    os.remove(os.path.join(path, "LICENSE"))
+
+
+def break_f003(path):
+    """Track a build artefact.
+
+    Staged and not committed on purpose: git ls-files reads the index,
+    so staging is enough to track it, and a second commit on main would
+    also turn F006 and break the one-thing-wrong discipline.
+    """
+    name = os.path.join(path, "tools", "thing.pyc")
+    with open(name, "w", encoding="utf-8") as handle:
+        handle.write("x\n")
+    git(path, "add", "-f", "tools/thing.pyc")
+
+
+def break_f004(path):
+    """Leave the command the host runs unrunnable."""
+    os.chmod(os.path.join(path, "tools", "check-thing"), 0o644)
+
+
+def break_f005(path):
+    """Wire the workflow to pushes only."""
+    with open(os.path.join(path, ".github", "workflows", "checks.yml"),
+              "w", encoding="utf-8") as handle:
+        handle.write(WORKFLOW_PUSH_ONLY)
+
+
+def break_f006(path):
+    """Put a commit on main that no pull request carried."""
+    with open(os.path.join(path, "README.md"), "a",
+              encoding="utf-8") as handle:
+        handle.write("\nstraight to main\n")
+    git(path, "commit", "-q", "-a", "-m", "direct push")
+
+
+def break_f007(path):
+    """Name a path inside the repository that is not the entry point."""
+    with open(os.path.join(path, "CLAUDE.md"), "w",
+              encoding="utf-8") as handle:
+        handle.write("Run `tools/check-thing` to check the repository.\n")
+
+
+def strip_git(path):
+    """Leave a directory that is not a repository."""
+    shutil.rmtree(os.path.join(path, ".git"))
+
+
+def strip_workflows(path):
+    """Leave a repository the host was never told about."""
+    shutil.rmtree(os.path.join(path, ".github"))
+
+
+def strip_agent_file(path):
+    """Leave a repository that tells no agent anything."""
+    os.remove(os.path.join(path, "CLAUDE.md"))
+
+
+FAILURES = [
+    ("F001", break_f001), ("F002", break_f002), ("F003", break_f003),
+    ("F004", break_f004), ("F005", break_f005), ("F006", break_f006),
+    ("F007", break_f007),
+]
+
+SKIPS = [
+    (("F003", "F006"), strip_git),
+    (("F004", "F005"), strip_workflows),
+    (("F007",), strip_agent_file),
+]
+
+
+def case(mutate):
+    """Build a good repository, mutate it, and return the results."""
+    path = tempfile.mkdtemp(prefix="floor-")
+    try:
+        if not good(path):
+            return None
+        mutate(path)
+        return review(path)
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def main():
+    """Provoke every rule. See the module docstring."""
+    try:
+        subprocess.run([sys.executable, "-m", "repo_review", "--version"],
+                       capture_output=True, check=True)
+    except (subprocess.CalledProcessError, OSError):
+        print("repo-review is not installed, so no rule was provoked "
+              "and nothing here was proved. Install it with: "
+              "pip install -e tools/floor")
+        return 0
+
+    baseline = case(lambda path: None)
+    if not baseline:
+        print("the known-good repository could not be built or read, so "
+              "nothing was provoked")
+        return 2
+    unexpected = sorted(k for k, v in baseline.items() if v is not True)
+    if unexpected:
+        print("the known-good repository does not pass: %s"
+              % ", ".join(unexpected))
+        return 1
+
+    bad = []
+    for rule, mutate in FAILURES:
+        results = case(mutate)
+        if results is None:
+            print("fail %-6s could not be read" % rule)
+            bad.append(rule)
+            continue
+        turned = sorted(k for k, v in results.items() if v is False)
+        if turned == [rule]:
+            print("ok   %-6s seen failing" % rule)
+        else:
+            print("fail %-6s expected only %s to turn, got %s"
+                  % (rule, rule, ", ".join(turned) or "nothing"))
+            bad.append(rule)
+
+    for rules, mutate in SKIPS:
+        results = case(mutate)
+        if results is None:
+            print("fail %-6s could not be read" % ",".join(rules))
+            bad.extend(rules)
+            continue
+        for rule in rules:
+            if results.get(rule) is None:
+                print("ok   %-6s says nothing when it cannot decide"
+                      % rule)
+            else:
+                print("fail %-6s claimed %r with no facts"
+                      % (rule, results.get(rule)))
+                bad.append(rule)
+
+    print("\n%d rule(s) seen failing, %d skip(s) seen."
+          % (len(FAILURES), sum(len(r) for r, _ in SKIPS)))
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
